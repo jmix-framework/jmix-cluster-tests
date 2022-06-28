@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-app
+  template:
+    metadata:
+      labels:
+        app: sample-app
+    spec:
+      containers:
+        - image: io.jmix.samples.cluster/sample-app
+          imagePullPolicy: IfNotPresent
+          name: sample-app
+          env:
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: sample-db-config
+                  key: db_user
+            - name: DB_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: sample-db-config
+                  key: db_password
+            - name: DB_HOST
+              value: sample-db-service
+            - name: DB_NAME
+              value: sample
+            - name: SPRING_PROFILES_ACTIVE
+              value: k8s
+            - name: HZ_NETWORK_JOIN_KUBERNETES_ENABLED
+              value: "true"
+            - name: BPL_DEBUG_ENABLED
+              value: "true"
+            - name: BPL_DEBUG_PORT
+              value: "5006"
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "sh", "-c", "sleep 10" ]
+          ports:
+            - containerPort: 8080
+            - containerPort: 5701
+# todo taimanov: ports, forwarding, convenient debug from local node
+#            - containerPort: 5006
+#              name: "jvm-debug"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      name: sample-app-app
+    - port: 5701
+      name: sample-app-hazelcast
+  selector:
+    app: sample-app

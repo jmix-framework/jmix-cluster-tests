@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-db-config
+data:
+  db_user: root
+  db_password: root
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sample-db-pvclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-db
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: sample-db
+    spec:
+      volumes:
+        - name: sample-db-storage
+          persistentVolumeClaim:
+            claimName: sample-db-pvclaim
+      containers:
+        - image: postgres
+          name: sample-db
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: sample-db-config
+                  key: db_user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: sample-db-config
+                  key: db_password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: sample
+          ports:
+            - containerPort: 5432
+              name: sample-db
+          volumeMounts:
+            - name: sample-db-storage
+              mountPath: /var/lib/postgresql/data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-db-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+  selector:
+    app: sample-db
