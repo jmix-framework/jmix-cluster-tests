@@ -1,6 +1,8 @@
 package io.jmix.samples.cluster.test_system.model.step;
 
-public class AbstractTestStep implements TestStep{
+import java.io.Serializable;
+
+public class AbstractTestStep implements TestStep, Serializable {
     //todo final
     protected int order;//todo Integer? serialization?
 

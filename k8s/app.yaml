@@ -49,6 +49,7 @@ spec:
 # todo taimanov: ports, forwarding, convenient debug from local node
 #            - containerPort: 5006
 #              name: "jvm-debug"
+#todo taimanov: forward jmx port
 
 ---
 apiVersion: v1

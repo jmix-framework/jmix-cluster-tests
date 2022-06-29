@@ -15,7 +15,6 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -39,7 +38,7 @@ public class ClusterTestManagementFacade implements ApplicationContextAware, Bea
     @ManagedAttribute(description = "Describes cluster test set")
     public List<TestInfo> getTests() {
 
-        return Collections.emptyList();//todo!! build testInfos
+        return testInfos;
     }
     @ManagedOperation(description = "Run test")
     @ManagedOperationParameters({
@@ -62,6 +61,7 @@ public class ClusterTestManagementFacade implements ApplicationContextAware, Bea
             System.out.println("Cluster test found: " + beanName);//todo
             tests.add((BaseClusterTest) bean);
             processTestAnnotations((BaseClusterTest) bean);
+            testInfos.add(new TestInfo(((BaseClusterTest) bean).getSteps(), "TODO:TestInfo for " + beanName));
         }
 
         return bean;

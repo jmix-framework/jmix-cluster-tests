@@ -7,5 +7,8 @@ import java.lang.annotation.*;
 @Inherited
 public @interface TestStep {
     int order();//todo?(Integer, def val?)
+
     String[] nodes() default {};
+
+    String description() default "";
 }
