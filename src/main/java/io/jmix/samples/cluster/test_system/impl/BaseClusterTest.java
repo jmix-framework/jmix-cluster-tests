@@ -9,13 +9,14 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-public class BaseClusterTest implements ClusterTest {
+public class BaseClusterTest implements ClusterTest {//todo WITHOUT extension!!
 
-    protected List<TestStep> steps=new LinkedList<>();//todo control uniqueness of step.order
+    protected List<TestStep> steps = new LinkedList<>();//todo control uniqueness of step.order
+
     @Override
     public List<String> getNodeNames() {
         return Arrays.asList("1", "2");
-    }
+    }//todo remove
 
     @Override
     public List<TestStep> getSteps() {

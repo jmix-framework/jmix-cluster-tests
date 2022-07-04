@@ -2,10 +2,12 @@ package io.jmix.samples.cluster.tests;
 
 import io.jmix.samples.cluster.test_system.impl.BaseClusterTest;
 import io.jmix.samples.cluster.test_system.model.TestContext;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTestProperties;
 import io.jmix.samples.cluster.test_system.model.annotations.TestStep;
 import org.springframework.stereotype.Component;
 
-@Component
+@Component("cluster_secondAnnotatedTest")
+@ClusterTestProperties(description = "Second test")
 public class SecondAnnotatedTest extends BaseClusterTest {
 
     @TestStep(order = 1, nodes = "1")

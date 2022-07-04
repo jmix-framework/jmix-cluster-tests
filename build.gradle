@@ -48,6 +48,7 @@ dependencies {
     implementation("io.jmix.dynattr:jmix-dynattr-starter")
     implementation("io.jmix.dynattr:jmix-dynattr-ui-starter")
     implementation("org.postgresql:postgresql")
+    implementation("io.kubernetes:client-java:15.0.1") //todo: later, after precise checking
 }
 
 test {

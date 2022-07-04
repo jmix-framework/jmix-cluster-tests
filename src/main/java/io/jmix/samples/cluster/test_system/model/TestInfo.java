@@ -1,43 +1,58 @@
 package io.jmix.samples.cluster.test_system.model;
 
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTestProperties;
+import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 public class TestInfo implements Serializable {
     //todo group to resources
-    private List<String> nodeNames; //todo rename?
+    private LinkedHashSet<String> podNames = new LinkedHashSet<>();
 
-    //todo
-    private String beanName;//todo
+    private String beanName;
 
-    transient private ClusterTest test;//todo
-
-    //private List<TestStep> beforeSteps;
+    //TODO: beforeTest/beforeAll/afterTest/afterAll
     private List<TestStep> steps;
-    //private List<TestStep> afterSteps;
 
-    private Class<? extends ClusterTest> testClass;
+    private String description = "";
+    private boolean eagerInitPods = false;
 
-    private String description;//todo and name?
-
-    public TestInfo(List<TestStep> steps, String description) {
+    public TestInfo(String beanName, List<TestStep> steps, @Nullable ClusterTestProperties properties) {
+        this.beanName = beanName;
         this.steps = steps;
-        this.description = description;
-
+        for (TestStep step : steps) {
+            if (step instanceof PodStep) {
+                podNames.addAll(((PodStep) step).getNodes());
+            }
+        }
+        if (properties != null) {
+            description = properties.description();
+            eagerInitPods = properties.eagerInitPods();
+        }
     }
 
     public String getDescription() {
         return description;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public LinkedHashSet<String> getPodNames() {
+        return podNames;
+    }
+
+    public List<TestStep> getSteps() {
+        return steps;
+    }
+
+    public String getBeanName() {
+        return beanName;
     }
 
     @Override
     public String toString() {
-        return "TestInfo:" + description;//todo
+        return String.format("Cluster test '%s':`%s", beanName, description);
     }
 }
