@@ -15,10 +15,7 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 @ManagedResource(description = "Entry point for cluster testing", objectName = "jmix.cluster:type=ClusterTestBean")
@@ -28,7 +25,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
 
     private Map<String, BaseClusterTest> testsByNames = new HashMap<>();//todo?
 
-
+    //todo healthCheck attribute/operation OR just call getTests()
     @ManagedAttribute(description = "ClusterTest size (example attribute)")//todo remove
     public long getSize() {
         return testInfos.size();
@@ -68,6 +65,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
     }
 
     private void processTestAnnotations(BaseClusterTest bean) {
+        List<io.jmix.samples.cluster.test_system.model.step.TestStep> steps = new LinkedList<>();//todo step vs annotation name collision
         for (Method method : ReflectionUtils.getDeclaredMethods(bean.getClass())) {
             TestStep stepAnnotation = method.getAnnotation(TestStep.class);
             if (stepAnnotation != null) {
@@ -84,9 +82,11 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
                     }
                 };
                 //todo how to organise invocation
-                bean.addStep(new PodStep(stepAnnotation.order(), stepAnnotation.nodes(), action));
+                steps.add(new PodStep(stepAnnotation.order(), stepAnnotation.nodes(), action));
             }
             //todo the same for ControlStep and UiStep
         }
+        steps.sort(Comparator.comparing(io.jmix.samples.cluster.test_system.model.step.TestStep::getOrder));
+        bean.setSteps(steps);
     }
 }

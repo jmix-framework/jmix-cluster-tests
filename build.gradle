@@ -48,13 +48,19 @@ dependencies {
     implementation("io.jmix.dynattr:jmix-dynattr-starter")
     implementation("io.jmix.dynattr:jmix-dynattr-ui-starter")
     implementation("org.postgresql:postgresql")
+
+    implementation 'org.glassfish.main.external:jmxremote_optional-repackaged:5.0'
+
     implementation("io.kubernetes:client-java:15.0.1") //todo: later, after precise checking
+    implementation("io.kubernetes:client-java-api-fluent:15.0.1") //todo: later, after precise checking
+
+    testImplementation 'org.hamcrest:hamcrest:2.2'
 }
 
 test {
     useJUnitPlatform()
 }
 
-bootBuildImage {
-    imageName = 'io.jmix.samples/sample-cluster'
+bootBuildImage {//todo which name is prefferable?
+    imageName = 'io.jmix.samples.cluster/sample-cluster'
 }

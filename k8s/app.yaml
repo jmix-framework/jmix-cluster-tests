@@ -13,7 +13,7 @@ spec:
         app: sample-app
     spec:
       containers:
-        - image: io.jmix.samples.cluster/sample-app
+        - image: io.jmix.samples.cluster/sample-cluster
           imagePullPolicy: IfNotPresent
           name: sample-app
           env:
@@ -39,6 +39,8 @@ spec:
               value: "true"
             - name: BPL_DEBUG_PORT
               value: "5006"
+            - name: JAVA_OPTS
+              value: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=127.0.0.1"
           lifecycle:
             preStop:
               exec:
@@ -46,11 +48,10 @@ spec:
           ports:
             - containerPort: 8080
             - containerPort: 5701
-# todo taimanov: ports, forwarding, convenient debug from local node
-#            - containerPort: 5006
-#              name: "jvm-debug"
-#todo taimanov: forward jmx port
-
+            #todo try to remove because it is exposed manually
+            - name: sample-app-jmx
+              containerPort: 9875
+              protocol: TCP
 ---
 apiVersion: v1
 kind: Service
@@ -63,5 +64,10 @@ spec:
       name: sample-app-app
     - port: 5701
       name: sample-app-hazelcast
+    #todo try to remove because it is exposed manually
+    - port: 9875
+      targetPort: sample-app-jmx
+      protocol: TCP
+      name: jmxconn
   selector:
     app: sample-app

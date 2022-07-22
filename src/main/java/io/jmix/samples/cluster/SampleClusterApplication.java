@@ -9,12 +9,10 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.jmx.support.ConnectorServerFactoryBean;
-import org.springframework.remoting.rmi.RmiRegistryFactoryBean;
 
 import javax.management.MalformedObjectNameException;
 import javax.sql.DataSource;
@@ -43,19 +41,11 @@ public class SampleClusterApplication {
         return dataSourceProperties.initializeDataSourceBuilder().build();
     }
 
-    @Bean("serverConnector")//todo?
-    @DependsOn("rmiRegistry")
-    ConnectorServerFactoryBean serverConnector() throws MalformedObjectNameException {//todo  exception in signature?
+    @Bean("serverConnector")
+    ConnectorServerFactoryBean serverConnector() throws MalformedObjectNameException {
         ConnectorServerFactoryBean bean = new ConnectorServerFactoryBean();
-        bean.setObjectName("connector:name=rmi");
-        bean.setServiceUrl("service:jmx:rmi://localhost/jndi/rmi://localhost:10099/myconnector");
-        return bean;
-    }
-
-    @Bean("rmiRegistry")
-    RmiRegistryFactoryBean rmiRegistry() {//todo deal with deprecation
-        RmiRegistryFactoryBean bean = new RmiRegistryFactoryBean();
-        bean.setPort(10099);
+        bean.setObjectName("connector:name=jmxmp");
+        bean.setServiceUrl("service:jmx:jmxmp://localhost:9875");
         return bean;
     }
 
@@ -67,5 +57,4 @@ public class SampleClusterApplication {
                 + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
     }
 
-    //todo setup jmx export manually to setup url correctly?
 }

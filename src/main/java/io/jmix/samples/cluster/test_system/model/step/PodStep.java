@@ -4,9 +4,11 @@ import io.jmix.samples.cluster.test_system.model.TestContext;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 //todo? divide to internal and external objects in order to avoid serialization issues?
 public class PodStep extends AbstractTestStep {
+    private static final long serialVersionUID = -7068551058455006687L;
     private List<String> nodes;
     transient private StepAction action;
 
@@ -36,8 +38,20 @@ public class PodStep extends AbstractTestStep {
         this.action = action;
     }
 
-    public interface StepAction{
+    public interface StepAction {
         boolean doStep(TestContext context);
     }
 
+    @Override
+    public boolean equals(Object o) {//todo consider actions (develop serialization for methodInvocation/scaling/ui task)
+        if (this == o) return true;
+        if (!(o instanceof PodStep)) return false;
+        PodStep podStep = (PodStep) o;
+        return nodes.equals(podStep.nodes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(nodes);
+    }
 }

@@ -23,8 +23,8 @@ public class BaseClusterTest implements ClusterTest {//todo WITHOUT extension!!
         return steps;//todo wrap?
     }
 
-    public void addStep(TestStep step){//todo?
-        steps.add(step);
+    public void setSteps(List<TestStep> steps) {//todo protect in order init bean only can change steps
+        this.steps = steps;
     }
 
     @Override//todo some reflection instead of single method?

@@ -8,8 +8,11 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 
 public class TestInfo implements Serializable {
+    private static final long serialVersionUID = -8002207034814424879L;
+
     //todo group to resources
     private LinkedHashSet<String> podNames = new LinkedHashSet<>();
 
@@ -49,6 +52,19 @@ public class TestInfo implements Serializable {
 
     public String getBeanName() {
         return beanName;
+    }
+
+    @Override
+    public boolean equals(Object o) {//todo check
+        if (this == o) return true;
+        if (!(o instanceof TestInfo)) return false;
+        TestInfo testInfo = (TestInfo) o;
+        return eagerInitPods == testInfo.eagerInitPods && podNames.equals(testInfo.podNames) && beanName.equals(testInfo.beanName) && steps.equals(testInfo.steps) && Objects.equals(description, testInfo.description);
+    }
+
+    @Override
+    public int hashCode() { //todo check
+        return Objects.hash(podNames, beanName, steps, description, eagerInitPods);
     }
 
     @Override
