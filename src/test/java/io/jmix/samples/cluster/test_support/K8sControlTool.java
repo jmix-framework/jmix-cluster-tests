@@ -60,9 +60,9 @@ public class K8sControlTool implements AutoCloseable {
         try {
             V1Scale scale = appApi.readNamespacedDeploymentScale("sample-app", "default", "true");
             System.out.println(String.format("Scaling deployment: %s -> %s", scale.getSpec().getReplicas(), size));
-            scale.getSpec().setReplicas(size);
+            scale.getSpec().setReplicas(size);//todo replace vs patch?
             appApi.replaceNamespacedDeploymentScale(APP_NAME, NAMESPACE, scale, "true", null, null, null);
-            //todo!!! await for scale appear
+            //todo!!! await for scale to appear
         } catch (ApiException e) {
             throw new RuntimeException("Cannot scale deployment", e);
         }

@@ -2,7 +2,7 @@ package io.jmix.samples.cluster.test_support;
 
 import java.io.IOException;
 
-public class PodBridge {
+public class PodBridge {//todo PodConnector? PodConnectInfo?
     //todo forward debug port too by setting
     private final String name;
     private final Process forwarder;
