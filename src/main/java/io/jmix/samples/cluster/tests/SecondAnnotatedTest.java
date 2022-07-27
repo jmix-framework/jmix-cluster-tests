@@ -19,6 +19,7 @@ public class SecondAnnotatedTest extends BaseClusterTest {
     @TestStep(order = 2, nodes = "2")
     public boolean doTwo(TestContext context){
         System.out.println("annotated test 1, step 2");
-        return true;
+        //todo fix again
+        return false;
     }
 }

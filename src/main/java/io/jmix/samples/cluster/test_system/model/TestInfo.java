@@ -54,6 +54,10 @@ public class TestInfo implements Serializable {
         return beanName;
     }
 
+    public boolean isEagerInitPods() {
+        return eagerInitPods;
+    }
+
     @Override
     public boolean equals(Object o) {//todo check
         if (this == o) return true;

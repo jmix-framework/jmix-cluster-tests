@@ -66,9 +66,11 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
 
     private void processTestAnnotations(BaseClusterTest bean) {
         List<io.jmix.samples.cluster.test_system.model.step.TestStep> steps = new LinkedList<>();//todo step vs annotation name collision
+        Set<String> knownPods = new HashSet<>();
         for (Method method : ReflectionUtils.getDeclaredMethods(bean.getClass())) {
             TestStep stepAnnotation = method.getAnnotation(TestStep.class);
             if (stepAnnotation != null) {
+                knownPods.addAll(Arrays.asList(stepAnnotation.nodes()));
                 PodStep.StepAction action = new PodStep.StepAction() {
                     @Override
                     public boolean doStep(TestContext context) {
@@ -88,5 +90,6 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
         }
         steps.sort(Comparator.comparing(io.jmix.samples.cluster.test_system.model.step.TestStep::getOrder));
         bean.setSteps(steps);
+        bean.setPodNames(knownPods);
     }
 }

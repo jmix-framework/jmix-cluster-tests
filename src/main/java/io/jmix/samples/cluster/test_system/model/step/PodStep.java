@@ -54,4 +54,13 @@ public class PodStep extends AbstractTestStep {
     public int hashCode() {
         return Objects.hash(nodes);
     }
+
+    @Override
+    public String toString() {
+        return "PodStep{" +
+                "nodes=" + nodes +
+                ", action=" + action +
+                ", order=" + order +
+                '}';
+    }
 }

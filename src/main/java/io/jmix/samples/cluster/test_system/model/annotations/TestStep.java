@@ -8,7 +8,7 @@ import java.lang.annotation.*;
 public @interface TestStep {
     int order();//todo?(Integer, def val?)
 
-    String[] nodes() default {};
+    String[] nodes() default {};//todo parameter for subsequent or parallel running
 
     String description() default "";
 }

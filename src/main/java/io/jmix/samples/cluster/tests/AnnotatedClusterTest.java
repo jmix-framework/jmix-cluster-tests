@@ -7,7 +7,7 @@ import io.jmix.samples.cluster.test_system.model.annotations.TestStep;
 import org.springframework.stereotype.Component;
 
 @Component("cluster_annotatedClusterTest")
-@ClusterTestProperties(eagerInitPods = true, description = "First test, sample, eager init pods")
+@ClusterTestProperties(description = "First test, sample, eager init pods")
 public class AnnotatedClusterTest extends BaseClusterTest {
 
     @TestStep(order = 1, nodes = "1")

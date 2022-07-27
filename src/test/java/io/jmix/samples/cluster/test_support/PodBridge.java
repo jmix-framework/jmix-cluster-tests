@@ -39,8 +39,10 @@ public class PodBridge {//todo PodConnector? PodConnectInfo?
                     .redirectOutput(ProcessBuilder.Redirect.INHERIT)
                     .redirectErrorStream(true)
                     .start();
+            Thread.sleep(2000);//todo how to wait port forwarding? check output?
             return new PodBridge(podName, process, localPort);
-        } catch (IOException e) {
+
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(String.format("Cannot forward port for pod '%s'", podName), e);
         }
     }
