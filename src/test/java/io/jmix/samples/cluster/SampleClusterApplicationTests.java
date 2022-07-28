@@ -1,5 +1,10 @@
 package io.jmix.samples.cluster;
 
+import io.jmix.core.Metadata;
+import io.jmix.core.pessimisticlocking.LockInfo;
+import io.jmix.core.pessimisticlocking.LockManager;
+import io.jmix.core.security.SystemAuthenticator;
+import io.jmix.samples.cluster.entity.Sample;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
@@ -9,6 +14,7 @@ import io.kubernetes.client.openapi.models.V1PodBuilder;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Config;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.IOException;
@@ -16,8 +22,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 @SpringBootTest
 class SampleClusterApplicationTests {
+    @Autowired
+    Metadata metadata;
+    @Autowired
+    LockManager lockManager;
+    @Autowired
+    SystemAuthenticator authenticator;
 
     @Test
     void contextLoads() {
@@ -68,43 +83,30 @@ class SampleClusterApplicationTests {
         api.deleteNamespacedPod("sample-app", "default", "true", null, null, null, null, null);
     }
 
-   /* @Test
-    void testPortForwarding() throws IOException, ApiException, InterruptedException {//todo remove
+    @Test
+    void testEntityLock() {
+        authenticator.begin();
+        try {
+            Sample entity = metadata.create(Sample.class);
+            entity.setName("Test name");
 
-        K8sControlTool k8s = new K8sControlTool();
 
-        ApiClient client = Config.defaultClient();
-        Configuration.setDefaultApiClient(client);
+            LockInfo lockInfo = lockManager.lock(entity);
 
-        CoreV1Api api = new CoreV1Api();
+            assertNull(lockInfo);
 
-        V1PodList v1PodList = api.listNamespacedPod("default", "true",
-                null,
-                null,
-                null,
-                "app=sample-app",
-                null,
-                null,
-                null,
-                null,
-                null);
+            lockInfo = lockManager.lock(entity);
 
-        int port = 49001;
-        List<Process> portForwarders = new LinkedList<>();
+            assertNotNull(lockInfo);
 
-        for (V1Pod pod : v1PodList.getItems()) {
-            int curPort = port++;
-            String podName = Objects.requireNonNull(pod.getMetadata()).getName();
-            System.out.println("Redirecting jmx for pod '" + podName + "' to " + curPort);//todo nullability of metadata and name or assume that it is not possible?
-            k8s.forwardPort(podName,Integer.toString(curPort),"9875");
+            lockManager.unlock(entity);
+            lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
+
+            assertNull(lockInfo);
+        } finally {
+            authenticator.end();
         }
-
-        System.out.println("Waiting 20 seconds...");
-        Thread.sleep(20000);
-
-        System.out.println("Stopping port forwarding..");
-        k8s.destroy();
-    }*/
+    }
 
 
 }

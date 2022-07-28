@@ -5,6 +5,7 @@ import io.jmix.core.annotation.DeletedDate;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import io.jmix.core.pessimisticlocking.PessimisticLock;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @JmixEntity
 @Table(name = "CLUSTER_SAMPLE")
 @Entity(name = "cluster_Sample")
+@PessimisticLock(timeoutSec = 120)
 public class Sample {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)

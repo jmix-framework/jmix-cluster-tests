@@ -73,6 +73,6 @@ public class TestInfo implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Cluster test '%s':`%s", beanName, description);
+        return String.format("Cluster test '%s':'%s'", beanName, description);
     }
 }
