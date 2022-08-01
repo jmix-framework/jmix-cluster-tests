@@ -1,11 +1,13 @@
 package io.jmix.samples.cluster.test_system;
 
-import io.jmix.samples.cluster.test_system.impl.BaseClusterTest;
+import io.jmix.samples.cluster.test_system.impl.ClusterTestImpl;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
-import io.jmix.samples.cluster.test_system.model.annotations.ClusterTestProperties;
-import io.jmix.samples.cluster.test_system.model.annotations.TestStep;
+import io.jmix.samples.cluster.test_system.model.TestStepException;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
+import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
+import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -23,7 +25,7 @@ import java.util.*;
 public class ClusterTestManagementFacade implements BeanPostProcessor {//todo other -aware?
     private List<TestInfo> testInfos = new LinkedList<>();//todo decide which
 
-    private Map<String, BaseClusterTest> testsByNames = new HashMap<>();//todo?
+    private Map<String, ClusterTestImpl> testsByNames = new HashMap<>();//todo?
 
     //todo healthCheck attribute/operation OR just call getTests()
     @ManagedAttribute(description = "ClusterTest size (example attribute)")//todo remove
@@ -39,48 +41,56 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
 
     @ManagedOperation(description = "Run test")
     @ManagedOperationParameters({
+            @ManagedOperationParameter(name = "info", description = "TestInfo describing test"),
             @ManagedOperationParameter(name = "stepOrder", description = "Order of step in test")
     })
-    public boolean runTest(TestInfo info, int stepOrder) {//todo pass context through jmx from system
-        PodStep step = (PodStep) testsByNames.get(info.getBeanName())
+    public boolean runTest(String beanName, int stepOrder) throws TestStepException {
+        //todo pass logger to out result during execution and before exception
+
+        PodStep step = (PodStep) testsByNames.get(beanName)
                 .getSteps().stream()
                 .filter(t -> t.getOrder() == stepOrder)
                 .findFirst()
-                .get();//TODO!!
-
-        return step.getAction().doStep(new TestContext());//TODO!!!
+                .get();
+        try {
+            return step.getAction().doStep(new TestContext());
+        } catch (Throwable e) {
+            throw new TestStepException(e);
+        }
     }
 
     @Override
-    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-        if (bean instanceof BaseClusterTest) {
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        if (testsByNames.containsKey(beanName))//todo check
+            return bean;
+
+        ClusterTest testAnnotation = bean.getClass().getAnnotation(ClusterTest.class);
+        if (testAnnotation != null) {
             System.out.println("Cluster test found: " + beanName);//todo
-            processTestAnnotations((BaseClusterTest) bean);
-            ClusterTestProperties properties = AnnotatedElementUtils.findMergedAnnotation(bean.getClass(), ClusterTestProperties.class);
-            testInfos.add(new TestInfo(beanName, ((BaseClusterTest) bean).getSteps(), properties));
-            testsByNames.put(beanName, (BaseClusterTest) bean);
+            ClusterTestImpl testImpl = new ClusterTestImpl();
+            processTestAnnotations(testImpl, bean);
+            ClusterTest properties = AnnotatedElementUtils.findMergedAnnotation(bean.getClass(), ClusterTest.class);
+            testInfos.add(new TestInfo(beanName, testImpl.getSteps(), properties));
+            testsByNames.put(beanName, testImpl);
         }
 
         return bean;
     }
 
-    private void processTestAnnotations(BaseClusterTest bean) {
-        List<io.jmix.samples.cluster.test_system.model.step.TestStep> steps = new LinkedList<>();//todo step vs annotation name collision
+    private void processTestAnnotations(ClusterTestImpl testImpl, Object targetBean) {
+        List<TestStep> steps = new LinkedList<>();
         Set<String> knownPods = new HashSet<>();
-        for (Method method : ReflectionUtils.getDeclaredMethods(bean.getClass())) {
-            TestStep stepAnnotation = method.getAnnotation(TestStep.class);
+        for (Method method : ReflectionUtils.getDeclaredMethods(targetBean.getClass())) {
+            Step stepAnnotation = method.getAnnotation(Step.class);
             if (stepAnnotation != null) {
                 knownPods.addAll(Arrays.asList(stepAnnotation.nodes()));
-                PodStep.StepAction action = new PodStep.StepAction() {
-                    @Override
-                    public boolean doStep(TestContext context) {
-                        try {
-                            Object result = method.invoke(bean, context); //todo more safe way?
-                            //todo smart detection of property types and "injection"
-                            return result instanceof Boolean && (boolean) result;//todo result processing
-                        } catch (IllegalAccessException | InvocationTargetException e) {
-                            throw new RuntimeException(e);//todo correct error processing and returning of result
-                        }
+                PodStep.StepAction action = context -> {
+                    try {//todo beanFactory to get bean for case of wrapping this bean further in e.g. slf4j/logging aspect or something else
+                        Object result = method.invoke(targetBean, context);
+                        //todo smart detection of property types and "injection"
+                        return result instanceof Boolean && (boolean) result;//todo result processing
+                    } catch (IllegalAccessException | InvocationTargetException e) {
+                        throw new RuntimeException(e);//todo correct error processing and returning of result
                     }
                 };
                 //todo how to organise invocation
@@ -88,8 +98,8 @@ public class ClusterTestManagementFacade implements BeanPostProcessor {//todo ot
             }
             //todo the same for ControlStep and UiStep
         }
-        steps.sort(Comparator.comparing(io.jmix.samples.cluster.test_system.model.step.TestStep::getOrder));
-        bean.setSteps(steps);
-        bean.setPodNames(knownPods);
+        steps.sort(Comparator.comparing(TestStep::getOrder));
+        testImpl.setSteps(steps);
+        testImpl.setPodNames(knownPods);
     }
 }

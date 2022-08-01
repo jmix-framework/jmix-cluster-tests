@@ -1,25 +1,23 @@
 package io.jmix.samples.cluster.tests;
 
-import io.jmix.samples.cluster.test_system.impl.BaseClusterTest;
 import io.jmix.samples.cluster.test_system.model.TestContext;
-import io.jmix.samples.cluster.test_system.model.annotations.ClusterTestProperties;
-import io.jmix.samples.cluster.test_system.model.annotations.TestStep;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
+import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import org.springframework.stereotype.Component;
 
 @Component("cluster_secondAnnotatedTest")
-@ClusterTestProperties(description = "Second test")
-public class SecondAnnotatedTest extends BaseClusterTest {
+@ClusterTest(description = "Second test")
+public class SecondAnnotatedTest {
 
-    @TestStep(order = 1, nodes = "1")
-    public boolean setupOne(TestContext context){
+    @Step(order = 1, nodes = "1")
+    public boolean setupOne(TestContext context) {
         System.out.println("annotated test 2, step 1");
         return true;
     }
 
-    @TestStep(order = 2, nodes = "2")
-    public boolean doTwo(TestContext context){
-        System.out.println("annotated test 1, step 2");
-        //todo fix again
-        return false;
+    @Step(order = 2, nodes = "2")
+    public boolean doTwo(TestContext context) {
+        System.out.println("annotated test 2, step 2");
+        throw new RuntimeException("This test failed with exception by design.");
     }
 }

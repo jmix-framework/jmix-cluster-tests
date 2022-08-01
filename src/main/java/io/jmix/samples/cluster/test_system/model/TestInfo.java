@@ -1,6 +1,6 @@
 package io.jmix.samples.cluster.test_system.model;
 
-import io.jmix.samples.cluster.test_system.model.annotations.ClusterTestProperties;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 
@@ -24,7 +24,7 @@ public class TestInfo implements Serializable {
     private String description = "";
     private boolean eagerInitPods = false;
 
-    public TestInfo(String beanName, List<TestStep> steps, @Nullable ClusterTestProperties properties) {
+    public TestInfo(String beanName, List<TestStep> steps, @Nullable ClusterTest properties) {
         this.beanName = beanName;
         this.steps = steps;
         for (TestStep step : steps) {

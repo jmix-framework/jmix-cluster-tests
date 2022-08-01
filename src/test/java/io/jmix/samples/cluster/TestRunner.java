@@ -2,6 +2,7 @@ package io.jmix.samples.cluster;
 
 import io.jmix.samples.cluster.test_support.K8sControlTool;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
+import io.jmix.samples.cluster.test_system.model.TestStepException;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import org.junit.jupiter.api.Order;
@@ -23,7 +24,8 @@ import java.util.stream.Stream;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class TestRunner {
     public static final String JMX_SERVICE_CUSTOM_URL = "service:jmx:jmxmp://localhost:%s";
@@ -127,15 +129,6 @@ public class TestRunner {
     }
 
 
-    @Test
-    @Order(10)
-    void checkTestsLoaded() throws ReflectionException, MalformedObjectNameException, AttributeNotFoundException, InstanceNotFoundException, IntrospectionException, MBeanException, IOException {
-        Stream<TestInfo> testInfos = loadTests("49003");
-        assertNotNull(testInfos);
-        assertTrue(testInfos.findAny().isPresent());
-        //todo check consistency: each pod returns the same set of tests
-    }
-
     //todo run single test
     @Order(20)
     @ParameterizedTest(name = "[{index}]: {arguments}")
@@ -162,23 +155,49 @@ public class TestRunner {
 
             List<TestStep> steps = info.getSteps();
             log.info("Executing test steps...");
+            stepsExecution:
             for (TestStep step : steps) {
                 log.info("  Executing step {}...", step);
                 if (step instanceof PodStep) {
-                    for (String node : ((PodStep) step).getNodes()) {
+                    Collection<String> nodes = ((PodStep) step).getNodes();
+                    if (nodes.isEmpty())
+                        nodes = requiredPods;
+                    for (String node : nodes) {
                         log.info("    Invoking node {} step...", node);
+                        AtomicBoolean result = new AtomicBoolean(false);
                         doInJmxConnection(portsByNames.get(node), (conn, objectName) -> {
-                            boolean result = (boolean) conn.invoke(objectName,
-                                    TEST_RUN_OPERATION,
-                                    new Object[]{info, step.getOrder()},
-                                    new String[]{TestInfo.class.getName(), int.class.getName()});
-                            if (!result) {//todo make sure exception thrown away to fail test and not processed by some wraper
-                                throw new RuntimeException(String.format("Test %s failed on step %s for node %s",
-                                        info,
-                                        step.getOrder(),
-                                        node));
+                            //todo try/catch to process concrete exception(s) because test failed
+                            try {
+                                result.set((boolean) conn.invoke(objectName,
+                                        TEST_RUN_OPERATION,
+                                        new Object[]{info.getBeanName(), step.getOrder()},
+                                        new String[]{String.class.getName(), int.class.getName()}));
+                                if (!result.get()) {//todo rework to use more informative custom class
+
+                                }
+                            } catch (MBeanException e) {
+                                //todo unwrap RuntimeException,InvocationTargetException
+                                Throwable wrapped = e;
+                                while (!(wrapped instanceof TestStepException)) {
+
+                                    if (wrapped != wrapped.getCause() && wrapped.getCause() != null) {
+                                        wrapped = wrapped.getCause();
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                log.error("Exception occurs during test step execution.", wrapped);//todo throw exception instead of log record
                             }
+
                         });
+                        if (result.get()) {
+                            //todo process result, print
+                        } else {
+                            throw new RuntimeException(String.format("Test %s failed on step %s for node %s",
+                                    info,
+                                    step.getOrder(),
+                                    node));
+                        }
                         log.info("    Step for node {} finished sucessfully.", node);
                     }
 
@@ -191,13 +210,29 @@ public class TestRunner {
         }
     }
 
+
+    @Test
+    void singleClusterTest() throws Exception {
+        String testBeanName = System.getProperty("testBeanName");
+        List<TestInfo> testInfos = loadTests()
+                .filter(info -> info.getBeanName().equals(testBeanName))
+                .collect(Collectors.toList());
+        if (testInfos.size() < 1) {
+            throw new IllegalArgumentException("No such test for bean " + testBeanName);
+        }
+
+        TestInfo info = testInfos.iterator().next();
+        log.info("Running single test: {}", info);
+        clusterTests(info);//todo check that test can be run without problems because of parametrized
+    }
+
     //todo not static
     static Stream<TestInfo> loadTests() throws Exception {
-        try (K8sControlTool k8s = new K8sControlTool()) {
+        try (K8sControlTool k8s = new K8sControlTool()) {//todo scale to 0 than to 1? (in order to kill all orphan port-forward processes?)
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
-                waitAppsReady(k8s.getPodPorts());
             }
+            waitAppsReady(k8s.getPodPorts());
             return loadTests(k8s.getPodPorts().values().iterator().next());
 
         }
@@ -231,6 +266,8 @@ public class TestRunner {
         } catch (IOException | MalformedObjectNameException | MBeanException | AttributeNotFoundException |
                  InstanceNotFoundException |
                  ReflectionException e) {
+            //todo check MBeanException
+
             throw new RuntimeException(String.format("Cannot connect to pod by port %s.", port), e);
         }
     }

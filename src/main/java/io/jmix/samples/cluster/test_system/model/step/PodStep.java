@@ -10,7 +10,7 @@ import java.util.Objects;
 public class PodStep extends AbstractTestStep {
     private static final long serialVersionUID = -7068551058455006687L;
     private List<String> nodes;
-    transient private StepAction action;
+    transient private StepAction action;//todo bad practice: one class - one purpose, do net send Action impls through jmx in order to not mismatch them with normal action later
 
     public PodStep(int order, String node, StepAction action) {
         this(order,new String[]{node},action);

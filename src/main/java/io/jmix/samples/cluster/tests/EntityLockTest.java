@@ -6,18 +6,17 @@ import io.jmix.core.pessimisticlocking.LockInfo;
 import io.jmix.core.pessimisticlocking.LockManager;
 import io.jmix.core.security.SystemAuthenticator;
 import io.jmix.samples.cluster.entity.Sample;
-import io.jmix.samples.cluster.test_system.impl.BaseClusterTest;
 import io.jmix.samples.cluster.test_system.model.TestContext;
-import io.jmix.samples.cluster.test_system.model.annotations.ClusterTestProperties;
-import io.jmix.samples.cluster.test_system.model.annotations.TestStep;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
+import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component("cluster_EntityLockTest")
-@ClusterTestProperties(description = "Checks entity lock cluster propagation")
-public class EntityLockTest extends BaseClusterTest {
+@ClusterTest(description = "Checks entity lock cluster propagation")
+public class EntityLockTest {
     public static final String ENTITY_INSTANCE_NAME = "LockTestEntity";
 
     @Autowired
@@ -29,7 +28,7 @@ public class EntityLockTest extends BaseClusterTest {
     @Autowired
     DataManager dataManager;
 
-    @TestStep(order = 0, nodes = "1")
+    @Step(order = 0)
     public boolean testStandalone(TestContext context) {
         authenticator.begin();
         try {
@@ -55,7 +54,7 @@ public class EntityLockTest extends BaseClusterTest {
         return true;
     }
 
-    @TestStep(order = 1, nodes = "1")
+    @Step(order = 1, nodes = "1")
     public boolean createEntity(TestContext context) {
 
         List<Sample> entities = dataManager.unconstrained().load(Sample.class)
@@ -70,8 +69,8 @@ public class EntityLockTest extends BaseClusterTest {
         return true;
     }
 
-    @TestStep(order = 2, nodes = "2")
-    public boolean lockEntity(TestContext context) {
+    @Step(order = 2, nodes = "2")
+    public boolean lockEntity(TestContext context) {//todo @Authenticated
         authenticator.begin();
         try {
             Sample entity = dataManager.load(Sample.class)
@@ -89,7 +88,7 @@ public class EntityLockTest extends BaseClusterTest {
         return true;
     }
 
-    @TestStep(order = 3, nodes = "3")
+    @Step(order = 3, nodes = "3")
     public boolean checkEntityLocked(TestContext context) {
         authenticator.begin();
         try {
@@ -112,7 +111,7 @@ public class EntityLockTest extends BaseClusterTest {
         return true;
     }
 
-    @TestStep(order = 4, nodes = "1")
+    @Step(order = 4, nodes = "1")
     public boolean checkEntityUnlocked(TestContext context) {
         authenticator.begin();
         try {
@@ -132,7 +131,7 @@ public class EntityLockTest extends BaseClusterTest {
     }
 
 
-    void assertNull(Object object) {
+    void assertNull(Object object) {//todo assertion library
         if (object != null) {
             throw new RuntimeException(String.format("Assertion failed, %s is not null", object));
         }
@@ -143,4 +142,6 @@ public class EntityLockTest extends BaseClusterTest {
             throw new RuntimeException(String.format("Assertion failed: null"));
         }
     }
+
+    //test for newly created node
 }

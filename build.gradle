@@ -59,6 +59,7 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    systemProperty 'testBeanName', System.getProperty('testBeanName')
 }
 
 bootBuildImage {//todo which name is prefferable?

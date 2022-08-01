@@ -10,7 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-public class BaseClusterTest implements ClusterTest {//todo WITHOUT extension!!
+public class ClusterTestImpl implements ClusterTest {//todo WITHOUT extension!!
 
     protected List<TestStep> steps = new LinkedList<>();//todo control uniqueness of step.order
     //todo do we need it at all or TestInfo can process it itself without using bean field?
