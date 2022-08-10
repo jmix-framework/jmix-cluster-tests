@@ -1,6 +1,7 @@
 package io.jmix.samples.cluster.test_system.model.step;
 
 import io.jmix.samples.cluster.test_system.model.TestContext;
+import io.jmix.samples.cluster.test_system.model.TestStepException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +40,7 @@ public class PodStep extends AbstractTestStep {
     }
 
     public interface StepAction {
-        boolean doStep(TestContext context);
+        boolean doStep(TestContext context) throws TestStepException;
     }
 
     @Override

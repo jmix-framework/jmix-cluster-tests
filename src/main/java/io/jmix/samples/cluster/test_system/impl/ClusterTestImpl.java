@@ -2,6 +2,7 @@ package io.jmix.samples.cluster.test_system.impl;
 
 import io.jmix.samples.cluster.test_system.model.ClusterTest;
 import io.jmix.samples.cluster.test_system.model.TestContext;
+import io.jmix.samples.cluster.test_system.model.TestStepException;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 
@@ -37,7 +38,7 @@ public class ClusterTestImpl implements ClusterTest {//todo WITHOUT extension!!
     }
 
     @Override//todo some reflection instead of single method?
-    public boolean doStep(TestContext context, PodStep step) {
+    public boolean doStep(TestContext context, PodStep step) throws TestStepException {
         return step.getAction().doStep(context);
     }
 

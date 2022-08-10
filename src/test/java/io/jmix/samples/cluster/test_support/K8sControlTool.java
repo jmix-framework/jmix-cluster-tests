@@ -22,7 +22,7 @@ public class K8sControlTool implements AutoCloseable {
     public static final int SCALE_TIMEOUT_MS = 120 * 1000;
     public static final int SCALE_CHECKING_PERIOUD_MS = 1000;
 
-    public static final int FIRST_PORT = 49101;//todo rollback
+    public static final int FIRST_PORT = 49001;//todo rollback
     public static final String INNER_JMX_PORT = "9875";
 
     private CoreV1Api coreApi;

@@ -12,4 +12,5 @@ public @interface ClusterTest {
     //todo predefined nodes? or do it and other things in class itself?
 
     //todo clearStart
+    //todo loggers config/filter
 }

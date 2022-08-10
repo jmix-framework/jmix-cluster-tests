@@ -15,6 +15,6 @@ public interface ClusterTest {//todo annotations!!!!!!!
     //todo use Enum?
     List<TestStep> getSteps();
 
-    boolean doStep(TestContext context, PodStep step);
+    boolean doStep(TestContext context, PodStep step) throws TestStepException;
 
 }
