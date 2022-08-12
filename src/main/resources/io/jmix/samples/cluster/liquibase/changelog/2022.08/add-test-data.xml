@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="1" author="sample-cluster">
+
+        <insert tableName="CLUSTER_USER" dbms="postgresql, mssql, hsqldb">
+            <column name="ID" value="ae90ad94-abad-44bc-b851-95e4eee3dea2"/>
+            <column name="VERSION" value="1"/>
+            <column name="USERNAME" value="test"/>
+            <column name="PASSWORD" value="{noop}test"/>
+            <column name="ACTIVE" valueBoolean="true"/>
+        </insert>
+
+        <insert tableName="CLUSTER_USER" dbms="oracle, mysql, mariadb">
+            <column name="ID" value="ae90ad94abad44bcb85195e4eee3dea2"/>
+            <column name="VERSION" value="1"/>
+            <column name="USERNAME" value="test"/>
+            <column name="PASSWORD" value="{noop}test"/>
+            <column name="ACTIVE" valueBoolean="true"/>
+        </insert>
+
+    </changeSet>
+
+</databaseChangeLog>

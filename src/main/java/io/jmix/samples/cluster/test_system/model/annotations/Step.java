@@ -16,4 +16,5 @@ public @interface Step {
     //todo parameter for subsequent or parallel running
 
     String description() default "";
+    //todo groups of tests: group represents one test sequence
 }

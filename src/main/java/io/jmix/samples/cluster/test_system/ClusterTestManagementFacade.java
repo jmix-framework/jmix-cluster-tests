@@ -2,7 +2,7 @@ package io.jmix.samples.cluster.test_system;
 
 import ch.qos.logback.classic.LoggerContext;
 import io.jmix.samples.cluster.test_system.impl.ClusterTestImpl;
-import io.jmix.samples.cluster.test_system.impl.TestAppender;
+import io.jmix.samples.cluster.test_system.impl.SynchronizedListAppender;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
 import io.jmix.samples.cluster.test_system.model.TestResult;
@@ -33,16 +33,17 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
 
     private Map<String, ClusterTestImpl> testsByNames = new HashMap<>();//todo?
 
-    private TestAppender appender;
+    private SynchronizedListAppender appender;
 
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        appender = new TestAppender();
+        appender = new SynchronizedListAppender();
 
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();//todo us LoggerContext import correct?
         context.getLogger("io.jmix").addAppender(appender);//todo or list of loggers: io.jmix, org.eclipselink, etc.
-        context.getLogger("org.eclipselink").addAppender(appender);//todo to config+dynamically by @ClusterTest annotation
+        context.getLogger("org.eclipselink").addAppender(appender);
+        context.getLogger("eclipselink").addAppender(appender);
     }
 
 
@@ -96,7 +97,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
 
         ClusterTest testAnnotation = bean.getClass().getAnnotation(ClusterTest.class);
         if (testAnnotation != null) {
-            System.out.println("Cluster test found: " + beanName);
+            System.out.println("Cluster test found: " + beanName);//todo logs
             ClusterTestImpl testImpl = new ClusterTestImpl();
             processTestAnnotations(testImpl, bean);
             ClusterTest properties = AnnotatedElementUtils.findMergedAnnotation(bean.getClass(), ClusterTest.class);

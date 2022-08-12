@@ -54,7 +54,7 @@ dependencies {
     implementation("io.kubernetes:client-java:15.0.1") //todo: later, after precise checking
     implementation("io.kubernetes:client-java-api-fluent:15.0.1") //todo: later, after precise checking
 
-    testImplementation 'org.hamcrest:hamcrest:2.2'
+    implementation 'org.hamcrest:hamcrest:2.2'
 }
 
 test {

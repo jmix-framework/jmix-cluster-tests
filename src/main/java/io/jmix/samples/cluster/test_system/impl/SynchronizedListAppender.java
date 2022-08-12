@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class TestAppender extends AppenderBase<ILoggingEvent> {
+public class SynchronizedListAppender extends AppenderBase<ILoggingEvent> {
 
-    private List<String> messages = Collections.synchronizedList(new ArrayList<>());
+    protected List<String> messages = Collections.synchronizedList(new ArrayList<>());
 
 
     public List<String> getMessages() {
@@ -35,9 +35,5 @@ public class TestAppender extends AppenderBase<ILoggingEvent> {
                 eventObject.getThreadName(),
                 eventObject.getLoggerName(),
                 eventObject));
-    }
-
-    public void setMessages(List<String> messages) {
-        this.messages = messages;
     }
 }

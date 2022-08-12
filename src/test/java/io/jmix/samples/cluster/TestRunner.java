@@ -37,7 +37,7 @@ public class TestRunner {
     public static final String TEST_LIST_ATTRIBUTE = "Tests";
     public static final String TEST_RUN_OPERATION = "runTest";
 
-    public static final int APP_STARTUP_TIMEOUT_SEC = 90;//todo increase
+    public static final int APP_STARTUP_TIMEOUT_SEC = 120;
     public static final int APP_STARTUP_CHECK_PERIOD_SEC = 10;
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(TestRunner.class);//todo
 
@@ -168,47 +168,35 @@ public class TestRunner {
                     if (nodes.isEmpty())
                         nodes = requiredPods;
                     for (String node : nodes) {
-                        log.info("    Invoking node {} step...", node);
+                        log.info("    Invoking step {} for node {} ...", step.getOrder(), node);
                         AtomicReference<TestResult> resultRef = new AtomicReference<>(null);
                         TestContext finalTestContext = testContext;
                         doInJmxConnection(localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.get(node),
                                 (conn, objectName) -> {
-                                    //todo try/catch to process concrete exception(s) because test failed
-                                    try {
-                                        resultRef.set((TestResult) conn.invoke(objectName,
-                                                TEST_RUN_OPERATION,
-                                                new Object[]{info.getBeanName(), step.getOrder(), finalTestContext},
-                                                new String[]{String.class.getName(), int.class.getName(), TestContext.class.getName()}));
-                                    } catch (MBeanException e) {
-                                        Throwable cause = e;
-                                        while (cause != cause.getCause() && cause.getCause() != null
-                                                && !(cause instanceof TestStepException)) {
-                                            cause = cause.getCause();
-                                        }
-                                        cause = cause instanceof TestStepException ? cause.getCause() : e;
+                                    resultRef.set((TestResult) conn.invoke(objectName,
+                                            TEST_RUN_OPERATION,
+                                            new Object[]{info.getBeanName(), step.getOrder(), finalTestContext},
+                                            new String[]{String.class.getName(), int.class.getName(), TestContext.class.getName()}));
 
-                                        log.error("Exception occurs during test step execution.", cause);//todo throw exception instead of log record
-                                    }
                                 });
                         if (resultRef.get() != null) {
                             TestResult result = resultRef.get();
                             StringBuilder builder = new StringBuilder();
                             for (String logRecord : result.getLogs()) {
-                                builder.append("          |-")
+                                builder.append("          |- ")
                                         .append(logRecord)
                                         .append("\n");
                             }
                             log.info("      Node {} logs:\n{}", node, builder);
                             if (result.isSuccessfully()) {
                                 testContext = result.getContext();//updating context
-                                log.info("    Step for node {} finished sucessfully.", node);
-                                //todo rework:
-                                log.info("TestContext size: " + testContext.size());
+                                log.info("    Step {} for node {} finished sucessfully.", step.getOrder(), node);
+                                log.info("    Test Context: {}", testContext);
                             } else {
                                 Throwable throwable = result.getException();
                                 if (throwable instanceof TestStepException)
                                     throwable = throwable.getCause();
-                                log.error("    Step for node {} finished with error.", node);
+                                log.error("    Step {} for node {} finished with error.", step.getOrder(), node);
                                 throw throwable;
                             }
                         }
@@ -247,8 +235,7 @@ public class TestRunner {
                 k8s.scalePods(1);
             }
             waitAppsReady(k8s.getPodPorts());
-            return loadTests(k8s.getPodPorts().values().iterator().next());
-
+            return loadTests(localMode ? K8sControlTool.INNER_JMX_PORT : k8s.getPodPorts().values().iterator().next());
         }
 
     }

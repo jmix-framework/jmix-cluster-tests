@@ -14,6 +14,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 @Component("cluster_EntityLockTest")
 @ClusterTest(description = "Checks entity lock cluster propagation")
 public class EntityLockTest {
@@ -38,16 +42,16 @@ public class EntityLockTest {
 
             LockInfo lockInfo = lockManager.lock(entity);
 
-            assertNull(lockInfo);
+            assertThat(lockInfo, nullValue());
 
             lockInfo = lockManager.lock(entity);
 
-            assertNotNull(lockInfo);
+            assertThat(lockInfo, notNullValue());
 
             lockManager.unlock(entity);
             lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
 
-            assertNull(lockInfo);
+            assertThat(lockInfo, nullValue());
         } finally {
             authenticator.end();
         }
@@ -80,7 +84,7 @@ public class EntityLockTest {
 
             LockInfo lockInfo = lockManager.lock(entity);
 
-            assertNull(lockInfo);
+            assertThat(lockInfo, nullValue());
 
         } finally {
             authenticator.end();
@@ -99,12 +103,12 @@ public class EntityLockTest {
 
             LockInfo lockInfo = lockManager.lock(entity);
 
-            assertNotNull(lockInfo);
+            assertThat(lockInfo, notNullValue());
 
             lockManager.unlock(entity);
             lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
 
-            assertNull(lockInfo);
+            assertThat(lockInfo, nullValue());
         } finally {
             authenticator.end();
         }
@@ -123,25 +127,13 @@ public class EntityLockTest {
             lockManager.unlock(entity);
             LockInfo lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
 
-            assertNull(lockInfo);
+            assertThat(lockInfo, nullValue());
         } finally {
             authenticator.end();
         }
         return true;
     }
 
-
-    void assertNull(Object object) {//todo assertion library
-        if (object != null) {
-            throw new RuntimeException(String.format("Assertion failed, %s is not null", object));
-        }
-    }
-
-    void assertNotNull(Object object) {
-        if (object == null) {
-            throw new RuntimeException(String.format("Assertion failed: null"));
-        }
-    }
-
+    //todo [pod step] test that newly created pod contains all required values in cache
     //test for newly created node
 }

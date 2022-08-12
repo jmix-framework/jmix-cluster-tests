@@ -13,4 +13,6 @@ public @interface ClusterTest {
 
     //todo clearStart
     //todo loggers config/filter
+    //todo enabled or ignore
+    //todo app-properties substitution by test (with full rescaling[restarting] of pods)
 }
