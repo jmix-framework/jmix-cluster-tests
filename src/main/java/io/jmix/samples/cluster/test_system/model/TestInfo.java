@@ -4,17 +4,14 @@ import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 
-import javax.annotation.Nullable;
 import java.io.Serializable;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class TestInfo implements Serializable {
     private static final long serialVersionUID = -8002207034814424879L;
 
     //todo group to resources
-    private LinkedHashSet<String> podNames = new LinkedHashSet<>();
+    private LinkedHashSet<String> podNames = new LinkedHashSet<>();//todo set only? no need for ordering?
 
     private String beanName;
 
@@ -22,9 +19,10 @@ public class TestInfo implements Serializable {
     private List<TestStep> steps;
 
     private String description = "";
-    private boolean eagerInitPods = false;
+    private Set<String> initNodes;
+    private boolean cleanStart;
 
-    public TestInfo(String beanName, List<TestStep> steps, @Nullable ClusterTest properties) {
+    public TestInfo(String beanName, List<TestStep> steps, ClusterTest properties) {
         this.beanName = beanName;
         this.steps = steps;
         for (TestStep step : steps) {
@@ -32,10 +30,25 @@ public class TestInfo implements Serializable {
                 podNames.addAll(((PodStep) step).getNodes());
             }
         }
-        if (properties != null) {
-            description = properties.description();
-            eagerInitPods = properties.eagerInitPods();
+        description = properties.description();
+
+        if (properties.initNodes().length == 1) {
+            switch (properties.initNodes()[0]) {
+                case ClusterTest.ALL_NODES:
+                    initNodes = new HashSet<>(new ArrayList<>(podNames));
+                    break;
+                case ClusterTest.NO_NODES:
+                    initNodes = new HashSet<>();
+                    break;
+                default:
+                    initNodes = new HashSet<>(Arrays.asList(properties.initNodes()));
+            }
+        } else {
+            initNodes = new HashSet<>(Arrays.asList(properties.initNodes()));
         }
+
+        cleanStart = properties.cleanStart();
+
     }
 
     public String getDescription() {
@@ -54,8 +67,12 @@ public class TestInfo implements Serializable {
         return beanName;
     }
 
-    public boolean isEagerInitPods() {
-        return eagerInitPods;
+    public Set<String> getInitNodes() {
+        return initNodes;
+    }
+
+    public boolean isCleanStart() {
+        return cleanStart;
     }
 
     @Override
@@ -63,12 +80,12 @@ public class TestInfo implements Serializable {
         if (this == o) return true;
         if (!(o instanceof TestInfo)) return false;
         TestInfo testInfo = (TestInfo) o;
-        return eagerInitPods == testInfo.eagerInitPods && podNames.equals(testInfo.podNames) && beanName.equals(testInfo.beanName) && steps.equals(testInfo.steps) && Objects.equals(description, testInfo.description);
+        return Objects.equals(initNodes, testInfo.initNodes) && podNames.equals(testInfo.podNames) && beanName.equals(testInfo.beanName) && steps.equals(testInfo.steps) && Objects.equals(description, testInfo.description);
     }
 
     @Override
     public int hashCode() { //todo check
-        return Objects.hash(podNames, beanName, steps, description, eagerInitPods);
+        return Objects.hash(podNames, beanName, steps, description, initNodes);
     }
 
     @Override

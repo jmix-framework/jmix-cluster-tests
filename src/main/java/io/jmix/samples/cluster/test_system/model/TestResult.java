@@ -5,7 +5,7 @@ import java.util.List;
 
 public class TestResult implements Serializable {
     private static final long serialVersionUID = -3105884104042261255L;
-    private List<String> logs;//todo check references and potential concurrency problems
+    private List<String> logs;
     private Throwable exception;
     private TestContext context;
 

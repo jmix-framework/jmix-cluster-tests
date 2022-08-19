@@ -7,20 +7,23 @@ import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
 import io.jmix.samples.cluster.test_system.model.TestResult;
 import io.jmix.samples.cluster.test_system.model.TestStepException;
+import io.jmix.samples.cluster.test_system.model.annotations.AddNode;
 import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
+import io.jmix.samples.cluster.test_system.model.annotations.RecreateNodes;
 import io.jmix.samples.cluster.test_system.model.annotations.Step;
+import io.jmix.samples.cluster.test_system.model.step.ControlStep;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.jmx.export.annotation.*;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
 import javax.annotation.Nullable;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -28,7 +31,8 @@ import java.util.*;
 
 @ManagedResource(description = "Entry point for cluster testing", objectName = "jmix.cluster:type=ClusterTestBean")
 @Component("cluster_ClusterTestManagementFacade")
-public class ClusterTestManagementFacade implements BeanPostProcessor, InitializingBean {//todo other -aware?
+public class ClusterTestManagementFacade implements BeanPostProcessor, InitializingBean {
+
     private List<TestInfo> testInfos = new LinkedList<>();//todo decide which
 
     private Map<String, ClusterTestImpl> testsByNames = new HashMap<>();//todo?
@@ -40,9 +44,10 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
     public void afterPropertiesSet() throws Exception {
         appender = new SynchronizedListAppender();
 
-        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();//todo us LoggerContext import correct?
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         context.getLogger("io.jmix").addAppender(appender);//todo or list of loggers: io.jmix, org.eclipselink, etc.
         context.getLogger("org.eclipselink").addAppender(appender);
+        context.getLogger("org.eclipse").addAppender(appender);
         context.getLogger("eclipselink").addAppender(appender);
     }
 
@@ -100,8 +105,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
             System.out.println("Cluster test found: " + beanName);//todo logs
             ClusterTestImpl testImpl = new ClusterTestImpl();
             processTestAnnotations(testImpl, bean);
-            ClusterTest properties = AnnotatedElementUtils.findMergedAnnotation(bean.getClass(), ClusterTest.class);
-            testInfos.add(new TestInfo(beanName, testImpl.getSteps(), properties));
+            testInfos.add(new TestInfo(beanName, testImpl.getSteps(), testAnnotation));
             testsByNames.put(beanName, testImpl);
         }
 
@@ -119,24 +123,39 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
                     try {//todo beanFactory to get bean for case of wrapping this bean further in e.g. slf4j/logging aspect or something else
                         Object result = method.invoke(targetBean, context);
                         //todo smart detection of property types and "injection"
+                        //todo ALLOW TO NOT USE CONTEXT
                         return result instanceof Boolean && (boolean) result;//todo result processing
                     } catch (IllegalAccessException e) {
 
 
                         throw new RuntimeException(e);//todo correct error processing and returning of result
                     } catch (InvocationTargetException e) {
-                        if (e.getTargetException() != null) {
-                            throw new TestStepException(e.getTargetException());//todo correct error processing and returning of result
+                        if (e.getTargetException() != null) {//todo recheck, does it used at all
+                            throw new TestStepException(e.getTargetException());
                         } else {
                             throw new RuntimeException(e);
                         }
                     }
                 };
-                //todo how to organise invocation
+
                 steps.add(new PodStep(stepAnnotation.order(), stepAnnotation.nodes(), action));
             }
+
+            Annotation[] annotations = method.getAnnotations();
+
+            Arrays.stream(annotations).filter(a -> AddNode.class.equals(a.annotationType())).map(AddNode.class::cast)
+                    .forEach(a -> {
+                        steps.add(new ControlStep(a.order(), ControlStep.Operation.ADD, a.names()));
+                    });
+            Arrays.stream(annotations).filter(a -> RecreateNodes.class.equals(a.annotationType())).map(RecreateNodes.class::cast)
+                    .forEach(a -> {
+                        steps.add(new ControlStep(a.order(), ControlStep.Operation.RECREATE_ALL, null));
+                    });
+
+
             //todo the same for ControlStep and UiStep
         }
+        //todo check uniquiness!!!
         steps.sort(Comparator.comparing(TestStep::getOrder));
         testImpl.setSteps(steps);
         testImpl.setPodNames(knownPods);

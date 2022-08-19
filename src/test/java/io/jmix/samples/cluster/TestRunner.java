@@ -1,10 +1,12 @@
 package io.jmix.samples.cluster;
 
+import io.jmix.core.DevelopmentException;
 import io.jmix.samples.cluster.test_support.K8sControlTool;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
 import io.jmix.samples.cluster.test_system.model.TestResult;
 import io.jmix.samples.cluster.test_system.model.TestStepException;
+import io.jmix.samples.cluster.test_system.model.step.ControlStep;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import org.junit.jupiter.api.Order;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.management.*;
 import javax.management.remote.JMXConnector;
@@ -24,13 +27,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class TestRunner {
+public class TestRunner {//todo move cluster tests to separate test in order to run without cl parameter
     public static final String JMX_SERVICE_CUSTOM_URL = "service:jmx:jmxmp://localhost:%s";
     public static final String CLUSTER_TEST_BEAN_NAME = "jmix.cluster:type=ClusterTestBean";
     public static final String TEST_SIZE_ATTRIBUTE = "Size";
@@ -39,9 +40,10 @@ public class TestRunner {
 
     public static final int APP_STARTUP_TIMEOUT_SEC = 120;
     public static final int APP_STARTUP_CHECK_PERIOD_SEC = 10;
-    private static final Logger log = org.slf4j.LoggerFactory.getLogger(TestRunner.class);//todo
+    private static final Logger log = LoggerFactory.getLogger(TestRunner.class);
 
-    public static final boolean localMode = false;
+    public static final boolean localMode = true;
+    public static final boolean debugPods = false;
 
     @Test
     @Order(1)
@@ -76,7 +78,7 @@ public class TestRunner {
                     common = tests;
                     continue;
                 }
-                assertThat(tests, is(equalTo(common)));
+                assertThat(tests).hasSameElementsAs(common);
             }
 
             k8s.scalePods(2);
@@ -133,23 +135,25 @@ public class TestRunner {
         }
     }
 
-
-    //todo run single test
     @Order(20)
     @ParameterizedTest(name = "[{index}]: {arguments}")
     @MethodSource("loadTests")
     void clusterTests(TestInfo info) throws Throwable {
         assertNotNull(info);
-        log.info("Starting test {}", info);//todo normal logs
+        log.info("Starting test {}", info);
 
-        Set<String> requiredPods = info.getPodNames();
+        Set<String> requiredPods = info.getInitNodes();
         log.info("{} app instances required: {}", requiredPods.size(), requiredPods);
-        try (K8sControlTool k8s = new K8sControlTool()) {
-            if (info.isEagerInitPods()) {
-                log.info("Eager pod initialization required, scaling...");
-                k8s.scalePods(requiredPods.size());
-                waitAppsReady(k8s.getPodPorts());
+        try (K8sControlTool k8s = new K8sControlTool(debugPods)) {
+            if (info.isCleanStart()) {
+                log.info("Clean start required. Stopping all pods.");
+                k8s.scalePods(0);//todo check that it is no problem because of 0 nodes (have seen null somewhere..)
             }
+
+            log.info("Init nodes {}", info.getInitNodes());
+
+            k8s.scalePods(info.getInitNodes().size());
+            waitAppsReady(k8s.getPodPorts());
 
             Map<String, String> portsByNames = new HashMap<>();
             Iterator<String> ports = k8s.getPorts().iterator();
@@ -165,8 +169,8 @@ public class TestRunner {
                 log.info("  Executing step {}...", step);
                 if (step instanceof PodStep) {
                     Collection<String> nodes = ((PodStep) step).getNodes();
-                    if (nodes.isEmpty())
-                        nodes = requiredPods;
+                    if (nodes.isEmpty())//todo do like for init: through constant and all pods (created on previous steps too)
+                        nodes = portsByNames.keySet();
                     for (String node : nodes) {
                         log.info("    Invoking step {} for node {} ...", step.getOrder(), node);
                         AtomicReference<TestResult> resultRef = new AtomicReference<>(null);
@@ -203,6 +207,28 @@ public class TestRunner {
 
                     }
 
+                } else if (step instanceof ControlStep) {
+                    ControlStep controlStep = (ControlStep) step;
+                    switch (controlStep.getOperation()) {
+                        case ADD:
+                            for (String nodName : controlStep.getNodeNames()) {
+                                if (portsByNames.containsKey(nodName)) {
+                                    throw new DevelopmentException("Pod with name '" + nodName + "' has been already created");//todo ?!
+                                }
+                                k8s.scalePods(k8s.getPodCount() + 1);
+                                Map<String, String> podPorts = k8s.getPodPorts();
+                                for (Map.Entry<String, String> podPort : podPorts.entrySet()) {
+                                    if (!portsByNames.containsValue(podPort.getValue())) {
+                                        portsByNames.put(nodName, podPort.getValue());
+                                        log.info("    Node {} has been added. Related pod:{}:{}", nodName, podPort.getKey(), podPort.getValue());
+                                    }
+                                }
+                            }
+                            waitAppsReady(k8s.getPodPorts());//todo rework
+                            break;
+                        case RECREATE_ALL://todo implement. if do  - move rescaling and mapping code to some method
+                            throw new RuntimeException("Not implemented yet and maybe will not be implemented at all");
+                    }
                 } else {
                     throw new RuntimeException("Not implemented yet!");
                 }
@@ -225,7 +251,7 @@ public class TestRunner {
 
         TestInfo info = testInfos.iterator().next();
         log.info("Running single test: {}", info);
-        clusterTests(info);//todo check that test can be run without problems because of parametrized
+        clusterTests(info);
     }
 
     //todo not static
@@ -267,7 +293,7 @@ public class TestRunner {
         } catch (IOException | MalformedObjectNameException | MBeanException | AttributeNotFoundException |
                  InstanceNotFoundException |
                  ReflectionException e) {
-            //todo check MBeanException
+            //todo check MBeanException??? or leave as is and just throw out
 
             throw new RuntimeException(String.format("Cannot connect to pod by port %s.", port), e);
         }

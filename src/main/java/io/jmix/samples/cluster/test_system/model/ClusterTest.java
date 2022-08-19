@@ -7,7 +7,7 @@ import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import java.util.List;
 import java.util.Set;
 
-public interface ClusterTest {//todo annotations!!!!!!!
+public interface ClusterTest {//todo remove?
 
     Set<String> getPodNames();
 

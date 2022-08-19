@@ -1,4 +1,4 @@
-package io.jmix.samples.cluster.tests;
+package io.jmix.samples.cluster.tests.health_check;
 
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
@@ -7,7 +7,8 @@ import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
 @Component("cluster_annotatedClusterTest")
-@ClusterTest(description = "First test, sample, eager init pods. Checks that context works.")
+@ClusterTest(cleanStart = true,
+        description = "Check context works")
 public class AnnotatedClusterTest {
 
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(AnnotatedClusterTest.class);
@@ -21,7 +22,7 @@ public class AnnotatedClusterTest {
 
     @Step(order = 2, nodes = "2")
     public boolean doStep2(TestContext context) {
-        assert context.get("a") == "b";//todo!
+        assert context.get("a") == "b";//todo (hamcrest)
         context.put("c", "d");
         log.info("annotated test 1, step 2");
         return true;
@@ -29,8 +30,8 @@ public class AnnotatedClusterTest {
 
     @Step(order = 3, nodes = {"1", "2"})
     public boolean doStep3(TestContext context) {
-        assert context.get("a") == "b";//todo!
-        assert context.get("c") == "d";//todo!
+        assert context.get("a") == "b";//todo (hamcrest)
+        assert context.get("c") == "d";//todo (hamcrest)
         context.put("e", "f");
         log.info("annotated test 1, step 3");
 

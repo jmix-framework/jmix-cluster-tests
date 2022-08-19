@@ -1,4 +1,4 @@
-package io.jmix.samples.cluster.tests;
+package io.jmix.samples.cluster.tests.health_check;
 
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;

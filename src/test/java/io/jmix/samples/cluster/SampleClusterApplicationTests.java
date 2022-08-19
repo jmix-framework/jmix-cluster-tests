@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-@SpringBootTest
+@SpringBootTest//todo apply properties
 class SampleClusterApplicationTests {
     @Autowired
     Metadata metadata;

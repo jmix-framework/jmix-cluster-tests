@@ -17,4 +17,6 @@ public @interface Step {
 
     String description() default "";
     //todo groups of tests: group represents one test sequence
+
+    //todo enabled or ignore
 }

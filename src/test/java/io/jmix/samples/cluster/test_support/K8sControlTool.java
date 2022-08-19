@@ -1,5 +1,6 @@
 package io.jmix.samples.cluster.test_support;
 
+import io.jmix.samples.cluster.TestRunner;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
@@ -8,6 +9,8 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1Scale;
 import io.kubernetes.client.util.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
@@ -23,11 +26,19 @@ public class K8sControlTool implements AutoCloseable {
     public static final int SCALE_CHECKING_PERIOUD_MS = 1000;
 
     public static final int FIRST_PORT = 49001;//todo rollback
+    public static final int FIRST_DEBUG_PORT = 49501;//todo rollback
     public static final String INNER_JMX_PORT = "9875";
+    public static final String INNER_DEBUG_PORT = "5006";
+
+    private static final Logger log = LoggerFactory.getLogger(TestRunner.class);
+
+
+    private static int nextPort = FIRST_PORT;
+    private static int nextDebugPort = FIRST_DEBUG_PORT;
 
     private CoreV1Api coreApi;
     private AppsV1Api appApi;
-    private static int nextPort = FIRST_PORT;
+    private boolean debugMode;
 
     //todo watch pods created/removed?
     private Map<String, PodBridge> bridges = new HashMap<>();
@@ -35,7 +46,8 @@ public class K8sControlTool implements AutoCloseable {
 
     //todo 1) test different cases when cluster is not available or some port closed
     // 2) test for remote connection
-    public K8sControlTool() {//todo bean? singleton?
+    public K8sControlTool(boolean debugMode) {//todo bean? singleton?
+        this.debugMode = debugMode;
         ApiClient client = null;
         try {
             client = Config.defaultClient();
@@ -49,11 +61,15 @@ public class K8sControlTool implements AutoCloseable {
         Runtime.getRuntime().addShutdownHook(new Thread(this::destroy));
     }
 
+    public K8sControlTool() {
+        this(false);
+    }
+
     public int getPodCount() {
         return bridges.size();
     }
 
-    public LinkedHashMap<String, String> getPodPorts() {//todo rework?
+    public LinkedHashMap<String, String> getPodPorts() {//todo rework!!!
         LinkedHashMap<String, String> result = new LinkedHashMap<>();
         for (Map.Entry<String, PodBridge> entry : bridges.entrySet()) {
             result.put(entry.getKey(), entry.getValue().getPort());
@@ -68,12 +84,11 @@ public class K8sControlTool implements AutoCloseable {
     public void scalePods(int size) {
         try {
             V1Scale scale = appApi.readNamespacedDeploymentScale("sample-app", "default", "true");
-            System.out.println(String.format("Scaling deployment: %s -> %s", scale.getSpec().getReplicas(), size));
+            log.info("Scaling deployment: {} -> {}", scale.getSpec().getReplicas(), size);
             scale.getSpec().setReplicas(size);//todo replace vs patch?
             appApi.replaceNamespacedDeploymentScale(APP_NAME, NAMESPACE, scale, "true", null, null, null);
-            //todo!!! await for scale to appear
             awaitScaling(size);
-            System.out.println("Deployment sucessfully scaled");
+            log.info("Deployment sucessfully scaled");
         } catch (ApiException e) {
             throw new RuntimeException("Cannot scale deployment", e);
         }
@@ -97,6 +112,7 @@ public class K8sControlTool implements AutoCloseable {
     }
 
     protected void syncPods() {
+        log.debug("Synchronizing pod bridges");
         List<V1Pod> pods = loadRunningPods();
         List<String> obsolete = new LinkedList<>(bridges.keySet());
         //add absent pod bridges
@@ -106,14 +122,21 @@ public class K8sControlTool implements AutoCloseable {
                 obsolete.remove(podName);
                 continue;//todo [last] verify carefully that it is the same pod but not just random name part collision
             }
-            String currentPort = Integer.toString(nextPort++);
-            bridges.put(podName, PodBridge.establish(podName, currentPort, INNER_JMX_PORT));
+            PodBridge bridge = PodBridge.establish(
+                    podName,
+                    Integer.toString(nextPort++),
+                    INNER_JMX_PORT,
+                    debugMode ? Integer.toString(nextDebugPort++) : null,
+                    debugMode ? INNER_DEBUG_PORT : null);
+            bridges.put(podName, bridge);
+            log.info("FORWARDING: {}", bridge);
         }
         //remove obsolete bridges
         for (String podName : obsolete) {
             bridges.get(podName).destroy();
             bridges.remove(podName);
         }
+        log.debug("Pod bridges synchronized");
     }
 
     protected List<V1Pod> loadRunningPods() {

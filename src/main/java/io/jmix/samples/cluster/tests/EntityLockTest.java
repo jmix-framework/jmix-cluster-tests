@@ -7,6 +7,7 @@ import io.jmix.core.pessimisticlocking.LockManager;
 import io.jmix.core.security.SystemAuthenticator;
 import io.jmix.samples.cluster.entity.Sample;
 import io.jmix.samples.cluster.test_system.model.TestContext;
+import io.jmix.samples.cluster.test_system.model.annotations.AddNode;
 import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
 import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,12 +15,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+
 
 @Component("cluster_EntityLockTest")
-@ClusterTest(description = "Checks entity lock cluster propagation")
+@ClusterTest(initNodes = {"1", "2"}, description = "Checks entity lock cluster propagation")
 public class EntityLockTest {
     public static final String ENTITY_INSTANCE_NAME = "LockTestEntity";
 
@@ -42,22 +42,23 @@ public class EntityLockTest {
 
             LockInfo lockInfo = lockManager.lock(entity);
 
-            assertThat(lockInfo, nullValue());
+            assertThat(lockInfo).isNull();
 
             lockInfo = lockManager.lock(entity);
 
-            assertThat(lockInfo, notNullValue());
+            assertThat(lockInfo).isNotNull();
 
             lockManager.unlock(entity);
             lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
 
-            assertThat(lockInfo, nullValue());
+            assertThat(lockInfo).isNull();
         } finally {
             authenticator.end();
         }
         return true;
     }
 
+    //@RecreateNodes(order = 0) //todo implement or remove
     @Step(order = 1, nodes = "1")
     public boolean createEntity(TestContext context) {
 
@@ -70,6 +71,7 @@ public class EntityLockTest {
         Sample entity = dataManager.create(Sample.class);
         entity.setName(ENTITY_INSTANCE_NAME);
         dataManager.unconstrained().save(entity);
+        context.put("entity", entity);
         return true;
     }
 
@@ -77,14 +79,11 @@ public class EntityLockTest {
     public boolean lockEntity(TestContext context) {//todo @Authenticated
         authenticator.begin();
         try {
-            Sample entity = dataManager.load(Sample.class)
-                    .query("select e from cluster_Sample e where e.name = :name")
-                    .parameter("name", ENTITY_INSTANCE_NAME)
-                    .one();
+            Sample entity = (Sample) context.get("entity");
 
             LockInfo lockInfo = lockManager.lock(entity);
 
-            assertThat(lockInfo, nullValue());
+            assertThat(lockInfo).isNull();
 
         } finally {
             authenticator.end();
@@ -92,30 +91,44 @@ public class EntityLockTest {
         return true;
     }
 
-    @Step(order = 3, nodes = "3")
+    @Step(order = 3, nodes = "1")
     public boolean checkEntityLocked(TestContext context) {
         authenticator.begin();
         try {
-            Sample entity = dataManager.load(Sample.class)
-                    .query("select e from cluster_Sample e where e.name = :name")
-                    .parameter("name", ENTITY_INSTANCE_NAME)
-                    .one();
+            Sample entity = (Sample) context.get("entity");
 
             LockInfo lockInfo = lockManager.lock(entity);
 
-            assertThat(lockInfo, notNullValue());
+            assertThat(lockInfo).isNotNull();
+
+        } finally {
+            authenticator.end();
+        }
+        return true;
+    }
+
+    @AddNode(order = 4, names = "3")
+    @Step(order = 5, nodes = "3")
+    public boolean checkEntityLockedOnNewNodeAndUnlock(TestContext context) {
+        authenticator.begin();
+        try {
+            Sample entity = (Sample) context.get("entity");
+
+            LockInfo lockInfo = lockManager.lock(entity);
+
+            assertThat(lockInfo).isNotNull();
 
             lockManager.unlock(entity);
             lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
 
-            assertThat(lockInfo, nullValue());
+            assertThat(lockInfo).isNull();
         } finally {
             authenticator.end();
         }
         return true;
     }
 
-    @Step(order = 4, nodes = "1")
+    @Step(order = 6, nodes = "1")
     public boolean checkEntityUnlocked(TestContext context) {
         authenticator.begin();
         try {
@@ -127,13 +140,11 @@ public class EntityLockTest {
             lockManager.unlock(entity);
             LockInfo lockInfo = lockManager.getLockInfo("cluster_Sample", entity.getId().toString());
 
-            assertThat(lockInfo, nullValue());
+            assertThat(lockInfo).isNull();
         } finally {
             authenticator.end();
         }
         return true;
     }
 
-    //todo [pod step] test that newly created pod contains all required values in cache
-    //test for newly created node
 }

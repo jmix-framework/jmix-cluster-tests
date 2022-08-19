@@ -6,7 +6,12 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface ClusterTest {
-    boolean eagerInitPods() default true;
+    String ALL_NODES = "_INIT_ALL_NODES";
+    String NO_NODES = "_INIT_NO_NODES";
+
+    boolean cleanStart() default false;
+
+    String[] initNodes() default ALL_NODES;
 
     String description() default "";//todo try AliasFor value
     //todo predefined nodes? or do it and other things in class itself?
@@ -15,4 +20,5 @@ public @interface ClusterTest {
     //todo loggers config/filter
     //todo enabled or ignore
     //todo app-properties substitution by test (with full rescaling[restarting] of pods)
+
 }
