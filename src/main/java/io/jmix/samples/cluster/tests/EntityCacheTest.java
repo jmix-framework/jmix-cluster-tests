@@ -2,9 +2,9 @@ package io.jmix.samples.cluster.tests;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.spi.ILoggingEvent;
 import io.jmix.core.UnconstrainedDataManager;
 import io.jmix.samples.cluster.entity.User;
+import io.jmix.samples.cluster.test_support.SimpleTestAppender;
 import io.jmix.samples.cluster.test_system.impl.SynchronizedListAppender;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.annotations.Step;
@@ -27,6 +27,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Component("cluster_EntityCacheTest")
 //@ClusterTest(description = "Checks entity cache")//todo deal with it
 //TODO USE ANOTHER ENTITY. MAYBE USER HAS BEEN QUERIED AT SOME
+//todo clean query cache too. it may interfere
+
+//TODO ANNOTATION LOST!!
 public class EntityCacheTest implements InitializingBean {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EntityCacheTest.class);
@@ -55,12 +58,7 @@ public class EntityCacheTest implements InitializingBean {
     public void afterPropertiesSet() throws Exception {
         cache = (JpaCache) entityManager.getEntityManagerFactory().getCache();
 
-        appender = new SynchronizedListAppender() {
-            @Override
-            protected void append(ILoggingEvent eventObject) {
-                messages.add(eventObject.getMessage() == null ? "" : eventObject.getMessage());
-            }
-        };
+        appender = new SimpleTestAppender();
 
         appender.start();
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();

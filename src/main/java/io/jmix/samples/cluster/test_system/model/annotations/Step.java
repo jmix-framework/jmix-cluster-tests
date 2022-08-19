@@ -15,7 +15,7 @@ public @interface Step {
     String[] nodes() default {};//todo RESERVED name for ALL nodes (or using empty value for it is enough?)
     //todo parameter for subsequent or parallel running
 
-    String description() default "";
+    String description() default "";//todo use method name by default
     //todo groups of tests: group represents one test sequence
 
     //todo enabled or ignore
