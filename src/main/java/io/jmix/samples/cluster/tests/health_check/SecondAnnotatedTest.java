@@ -22,4 +22,6 @@ public class SecondAnnotatedTest {
         log.info("annotated test 2, step 2");
         throw new RuntimeException("This test failed with exception by design.");
     }
+
+    //todo check always run method!!
 }

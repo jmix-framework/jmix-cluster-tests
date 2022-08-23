@@ -43,4 +43,15 @@ public class TestResult implements Serializable {
     public void setContext(TestContext context) {
         this.context = context;
     }
+
+    @Override
+    public String toString() {
+        return "TestResult{" +
+                "   successfully=" + successfully + ",\n" +
+                "   exception=" + exception + ",\n" +
+                "   context=" + context + ",\n" +
+
+                "logs=" + String.join("\n", logs) + "\n" +
+                '}';
+    }
 }

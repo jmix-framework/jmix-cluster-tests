@@ -84,7 +84,7 @@ public class K8sControlTool implements AutoCloseable {
     public void scalePods(int size) {
         try {
             V1Scale scale = appApi.readNamespacedDeploymentScale("sample-app", "default", "true");
-            log.info("Scaling deployment: {} -> {}", scale.getSpec().getReplicas(), size);
+            log.info("Scaling deployment: {} -> {}", scale.getSpec().getReplicas(), size);//todo null printed when it is 0 replicas
             scale.getSpec().setReplicas(size);//todo replace vs patch?
             appApi.replaceNamespacedDeploymentScale(APP_NAME, NAMESPACE, scale, "true", null, null, null);
             awaitScaling(size);

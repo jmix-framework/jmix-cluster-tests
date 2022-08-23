@@ -31,18 +31,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+/*//todo sync->clean->sync again? check order!!
+18:53:14.951 [Test worker] INFO io.jmix.samples.cluster.TestRunner - 2 app instances required: [1, 2]
+18:53:14.964 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
+18:53:17.010 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-49x7b', port='49004', debugPort='null'}
+18:53:19.014 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-8z8mr', port='49005', debugPort='null'}
+18:53:21.020 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-r47dh', port='49006', debugPort='null'}
+18:53:21.021 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Pod bridges synchronized
+18:53:21.021 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Clean start required. Stopping all pods.
+18:53:21.029 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Scaling deployment: 3 -> 0
+18:53:33.181 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Deployment sucessfully scaled
+18:53:33.181 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
+18:53:33.185 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Pod bridges synchronized
+18:53:33.185 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Init nodes [1, 2]
+18:53:33.191 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Scaling deployment: null -> 2
+18:53:36.228 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Deployment sucessfully scaled
+18:53:36.228 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
+* */
+
+
 public class TestRunner {//todo move cluster tests to separate test in order to run without cl parameter
     public static final String JMX_SERVICE_CUSTOM_URL = "service:jmx:jmxmp://localhost:%s";
     public static final String CLUSTER_TEST_BEAN_NAME = "jmix.cluster:type=ClusterTestBean";
     public static final String TEST_SIZE_ATTRIBUTE = "Size";
+    public static final String READY_ATTRIBUTE = "Ready";
     public static final String TEST_LIST_ATTRIBUTE = "Tests";
     public static final String TEST_RUN_OPERATION = "runTest";
+    public static final String BEFORE_TEST_RUN_OPERATION = "runBeforeTestAction";
+    public static final String AFTER_TEST_RUN_OPERATION = "runAfterTestAction";
 
     public static final int APP_STARTUP_TIMEOUT_SEC = 120;
     public static final int APP_STARTUP_CHECK_PERIOD_SEC = 10;
     private static final Logger log = LoggerFactory.getLogger(TestRunner.class);
 
-    public static final boolean localMode = true;
+    public static final boolean localMode = false;
     public static final boolean debugPods = false;
 
     @Test
@@ -95,11 +117,9 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
             while (!sucess.get()) {
                 try {
                     doInJmxConnection(podPort.getValue(), ((connection, objectName) -> {
-                        long size = (long) connection.getAttribute(objectName, TEST_SIZE_ATTRIBUTE);
-                        if (size > 0) {
+                        boolean ready = (boolean) connection.getAttribute(objectName, READY_ATTRIBUTE);
+                        if (ready) {
                             sucess.set(true);
-                        } else {
-                            throw new RuntimeException("No tests for pod '" + podPort.getKey() + "'");
                         }
                     }));
                 } catch (RuntimeException e) {
@@ -162,9 +182,32 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
             }
             log.info("Pod ports mapped:{}", portsByNames);
 
+
+            log.info("Executing before test action...");
+            AtomicReference<TestResult> beforeResult = new AtomicReference<>(null);
+            doInJmxConnection(
+                    (localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.keySet().iterator().next()),
+                    (conn, objectName) -> {
+                        beforeResult.set((TestResult) conn.invoke(objectName,
+                                BEFORE_TEST_RUN_OPERATION,
+                                new Object[]{info.getBeanName(), null},
+                                new String[]{String.class.getName(), TestContext.class.getName()}
+                        ));
+                    }
+            );
+
+            TestContext testContext;
+
+            if (beforeResult.get().isSuccessfully()) {
+                testContext = beforeResult.get().getContext();
+            } else {
+                throw beforeResult.get().getException();//todo common method for step invocation and error processing
+            }
+
+
             List<TestStep> steps = info.getSteps();
             log.info("Executing test steps...");
-            TestContext testContext = new TestContext();
+
             for (TestStep step : steps) {
                 log.info("  Executing step {}...", step);
                 if (step instanceof PodStep) {
@@ -200,6 +243,9 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                                 Throwable throwable = result.getException();
                                 if (throwable instanceof TestStepException)
                                     throwable = throwable.getCause();
+
+                                //TODO AFTERTESTMETHOD!!!
+
                                 log.error("    Step {} for node {} finished with error.", step.getOrder(), node);
                                 throw throwable;
                             }

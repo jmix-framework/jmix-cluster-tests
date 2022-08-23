@@ -132,7 +132,7 @@ public class EntityLockTest {
     public boolean checkEntityUnlocked(TestContext context) {
         authenticator.begin();
         try {
-            Sample entity = dataManager.load(Sample.class)
+            Sample entity = dataManager.load(Sample.class)//todo use context!!
                     .query("select e from cluster_Sample e where e.name = :name")
                     .parameter("name", ENTITY_INSTANCE_NAME)
                     .one();

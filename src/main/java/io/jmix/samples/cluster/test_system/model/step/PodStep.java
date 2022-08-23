@@ -1,8 +1,5 @@
 package io.jmix.samples.cluster.test_system.model.step;
 
-import io.jmix.samples.cluster.test_system.model.TestContext;
-import io.jmix.samples.cluster.test_system.model.TestStepException;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -11,16 +8,10 @@ import java.util.Objects;
 public class PodStep extends AbstractTestStep {
     private static final long serialVersionUID = -7068551058455006687L;
     private List<String> nodes;
-    transient private StepAction action;//todo bad practice: one class - one purpose, do net send Action impls through jmx in order to not mismatch them with normal action later
 
-    public PodStep(int order, String node, StepAction action) {
-        this(order,new String[]{node},action);
-    }
-
-    public PodStep(int order, String[] nodes, StepAction action) {
+    public PodStep(int order, String... nodes) {
         super(order);
         this.nodes = Arrays.asList(nodes);
-        this.action = action;
     }
 
     public List<String> getNodes() {
@@ -29,18 +20,6 @@ public class PodStep extends AbstractTestStep {
 
     public void setNodes(List<String> nodes) {
         this.nodes = nodes;
-    }
-
-    public StepAction getAction() {
-        return action;
-    }
-
-    public void setAction(StepAction action) {
-        this.action = action;
-    }
-
-    public interface StepAction {
-        boolean doStep(TestContext context) throws TestStepException;
     }
 
     @Override
@@ -60,7 +39,6 @@ public class PodStep extends AbstractTestStep {
     public String toString() {
         return "PodStep{" +
                 "nodes=" + nodes +
-                ", action=" + action +
                 ", order=" + order +
                 '}';
     }

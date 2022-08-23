@@ -1,23 +1,24 @@
 package io.jmix.samples.cluster.test_system;
 
 import ch.qos.logback.classic.LoggerContext;
+import io.jmix.core.DevelopmentException;
 import io.jmix.samples.cluster.test_system.impl.ClusterTestImpl;
 import io.jmix.samples.cluster.test_system.impl.SynchronizedListAppender;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
 import io.jmix.samples.cluster.test_system.model.TestResult;
 import io.jmix.samples.cluster.test_system.model.TestStepException;
-import io.jmix.samples.cluster.test_system.model.annotations.AddNode;
-import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
-import io.jmix.samples.cluster.test_system.model.annotations.RecreateNodes;
-import io.jmix.samples.cluster.test_system.model.annotations.Step;
-import io.jmix.samples.cluster.test_system.model.step.ControlStep;
-import io.jmix.samples.cluster.test_system.model.step.PodStep;
-import io.jmix.samples.cluster.test_system.model.step.TestStep;
+import io.jmix.samples.cluster.test_system.model.annotations.*;
+import io.jmix.samples.cluster.test_system.model.step.*;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.jmx.export.annotation.*;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
@@ -31,13 +32,19 @@ import java.util.*;
 
 @ManagedResource(description = "Entry point for cluster testing", objectName = "jmix.cluster:type=ClusterTestBean")
 @Component("cluster_ClusterTestManagementFacade")
-public class ClusterTestManagementFacade implements BeanPostProcessor, InitializingBean {
+public class ClusterTestManagementFacade implements BeanPostProcessor, InitializingBean, BeanFactoryAware {
 
-    private List<TestInfo> testInfos = new LinkedList<>();//todo decide which
+    private static final Logger log = LoggerFactory.getLogger(ClusterTestManagementFacade.class);
 
-    private Map<String, ClusterTestImpl> testsByNames = new HashMap<>();//todo?
+    private BeanFactory beanFactory;
+
+    private List<TestInfo> testInfos = new LinkedList<>();//todo immutability
+
+    private Map<String, ClusterTestImpl> testsByNames = new HashMap<>();
 
     private SynchronizedListAppender appender;
+
+    private volatile boolean ready = false;
 
 
     @Override
@@ -52,11 +59,16 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
     }
 
 
-    //todo healthCheck attribute/operation OR just call getTests()
     @ManagedAttribute(description = "ClusterTest size (example attribute)")//todo remove
     public long getSize() {
         return testInfos.size();
     }
+
+    @ManagedAttribute(description = "Returns true after ApplicationReadyEvent occurs")
+    public boolean getReady() {
+        return ready;
+    }
+
 
     //todo types
     @ManagedAttribute(description = "Describes cluster test set")
@@ -65,24 +77,76 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
     }
 
     @ManagedOperation(description = "Run test")
-    @ManagedOperationParameters({//todo overloaded method without context for manual checking?
+    @ManagedOperationParameters({
             @ManagedOperationParameter(name = "beanName", description = "Name of the bean containing test"),
             @ManagedOperationParameter(name = "stepOrder", description = "Order of step in test"),
             @ManagedOperationParameter(name = "context", description = "Test context to store objects between test")
     })
     public TestResult runTest(String beanName, int stepOrder, @Nullable TestContext context) throws TestStepException {
-        //todo pass logger to out result during execution and before exception
         TestResult result = new TestResult();
+        ClusterTestImpl impl = testsByNames.get(beanName);
         appender.start();
         if (context == null)
             context = new TestContext();
         try {
-            PodStep step = (PodStep) testsByNames.get(beanName)
-                    .getSteps().stream()
-                    .filter(t -> t.getOrder() == stepOrder)
-                    .findFirst()
-                    .get();
-            step.getAction().doStep(context);
+            if (impl.getBeforeStep() != null) {
+                impl.getBeforeStep().doAction(context);
+            }
+            TestAction action = impl.getAction(stepOrder);
+            action.doAction(context);
+        } catch (TestStepException e) {
+            result.setException(e);
+            result.setSuccessfully(false);
+        } finally {
+            if (impl.getAfterStep() != null && (impl.getAfterStep().isDoAlways() || result.isSuccessfully())) {
+                impl.getAfterStep().doAction(context);
+            }
+            appender.stop();
+            result.setLogs(new ArrayList<>(appender.getMessages()));
+            result.setContext(context);
+            appender.clear();
+        }
+        return result;
+    }
+
+    @ManagedOperation(description = "Run before test action")
+    @ManagedOperationParameters({
+            @ManagedOperationParameter(name = "beanName", description = "Name of the bean containing test"),
+            @ManagedOperationParameter(name = "context", description = "Test context to store objects between test")
+    })
+    public TestResult runBeforeTestAction(String beanName, @Nullable TestContext context) {
+        TestResult result = new TestResult();
+        ClusterTestImpl impl = testsByNames.get(beanName);//todo deal with code duplication
+        appender.start();
+        if (context == null)
+            context = new TestContext();
+        try {
+            impl.getBeforeTest().doAction(context);
+        } catch (TestStepException e) {
+            result.setException(e);
+            result.setSuccessfully(false);
+        } finally {
+            appender.stop();
+            result.setLogs(new ArrayList<>(appender.getMessages()));
+            result.setContext(context);
+            appender.clear();
+        }
+        return result;
+    }
+
+    @ManagedOperation(description = "Run before test action")
+    @ManagedOperationParameters({
+            @ManagedOperationParameter(name = "beanName", description = "Name of the bean containing test"),
+            @ManagedOperationParameter(name = "context", description = "Test context to store objects between test")
+    })
+    public TestResult runAfterTestAction(String beanName, @Nullable TestContext context) {
+        TestResult result = new TestResult();
+        ClusterTestImpl impl = testsByNames.get(beanName);
+        appender.start();
+        if (context == null)
+            context = new TestContext();
+        try {
+            impl.getAfterTest().doAction(context);
         } catch (TestStepException e) {
             result.setException(e);
             result.setSuccessfully(false);
@@ -97,67 +161,142 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (testsByNames.containsKey(beanName))//todo check
-            return bean;
-
         ClusterTest testAnnotation = bean.getClass().getAnnotation(ClusterTest.class);
         if (testAnnotation != null) {
-            System.out.println("Cluster test found: " + beanName);//todo logs
-            ClusterTestImpl testImpl = new ClusterTestImpl();
-            processTestAnnotations(testImpl, bean);
-            testInfos.add(new TestInfo(beanName, testImpl.getSteps(), testAnnotation));
+            log.info("Cluster test found: " + beanName);
+            ClusterTestImpl testImpl = processTestAnnotations(bean, beanName, testAnnotation);
+            testInfos.add(testImpl.getTestInfo());
             testsByNames.put(beanName, testImpl);
         }
 
         return bean;
     }
 
-    private void processTestAnnotations(ClusterTestImpl testImpl, Object targetBean) {
+    @EventListener(ApplicationReadyEvent.class)
+    public void onReady() {
+        log.warn("TDEBUG_CLUST: application READY");
+        ready = true;
+    }
+
+    private ClusterTestImpl processTestAnnotations(Object targetBean, String beanName, ClusterTest annotation) {
         List<TestStep> steps = new LinkedList<>();
-        Set<String> knownPods = new HashSet<>();
+        Map<Integer, TestAction> actions = new HashMap<>();
+
+        TestAction beforeStepAction = null;
+        TestAfterAction afterStepAction = null;
+        TestAction beforeTestAction = null;
+        TestAfterAction afterTestAction = null;
+        boolean alwaysRunAfterTestAction = false;//todo refactor better? (add also info about existence of afterTest in TestInfo)
+
         for (Method method : ReflectionUtils.getDeclaredMethods(targetBean.getClass())) {
-            Step stepAnnotation = method.getAnnotation(Step.class);
-            if (stepAnnotation != null) {
-                knownPods.addAll(Arrays.asList(stepAnnotation.nodes()));
-                PodStep.StepAction action = context -> {
-                    try {//todo beanFactory to get bean for case of wrapping this bean further in e.g. slf4j/logging aspect or something else
-                        Object result = method.invoke(targetBean, context);
-                        //todo smart detection of property types and "injection"
-                        //todo ALLOW TO NOT USE CONTEXT
-                        return result instanceof Boolean && (boolean) result;//todo result processing
-                    } catch (IllegalAccessException e) {
+            processStepAnnotation(targetBean, beanName, method, steps, actions);
+            processControlAnnotations(method, steps);
 
 
-                        throw new RuntimeException(e);//todo correct error processing and returning of result
-                    } catch (InvocationTargetException e) {
-                        if (e.getTargetException() != null) {//todo recheck, does it used at all
-                            throw new TestStepException(e.getTargetException());
-                        } else {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                };
+            beforeStepAction = processAnnotatedMethod(beanName, method, BeforeStep.class, beforeStepAction != null);//todo make ClusterTestImpl sealable and move exception to setter?
 
-                steps.add(new PodStep(stepAnnotation.order(), stepAnnotation.nodes(), action));
+            beforeTestAction = processAnnotatedMethod(beanName, method, BeforeTest.class, beforeTestAction != null);
+
+
+            TestAction afterStepActionCandidate = processAnnotatedMethod(beanName, method, AfterStep.class, afterStepAction != null);
+            if (afterStepActionCandidate != null) {
+                afterStepAction = new TestAfterAction(
+                        afterStepActionCandidate,
+                        method.getAnnotation(AfterStep.class).alwaysRun());
             }
 
-            Annotation[] annotations = method.getAnnotations();
+            TestAction afterTestActionCandidate = processAnnotatedMethod(beanName, method, AfterTest.class, afterTestAction != null);
+            if (afterTestActionCandidate != null) {
+                alwaysRunAfterTestAction = method.getAnnotation(AfterTest.class).alwaysRun();
+                afterTestAction = new TestAfterAction(
+                        afterTestActionCandidate,
+                        alwaysRunAfterTestAction);
 
-            Arrays.stream(annotations).filter(a -> AddNode.class.equals(a.annotationType())).map(AddNode.class::cast)
-                    .forEach(a -> {
-                        steps.add(new ControlStep(a.order(), ControlStep.Operation.ADD, a.names()));
-                    });
-            Arrays.stream(annotations).filter(a -> RecreateNodes.class.equals(a.annotationType())).map(RecreateNodes.class::cast)
-                    .forEach(a -> {
-                        steps.add(new ControlStep(a.order(), ControlStep.Operation.RECREATE_ALL, null));
-                    });
+            }
 
-
-            //todo the same for ControlStep and UiStep
         }
-        //todo check uniquiness!!!
+
         steps.sort(Comparator.comparing(TestStep::getOrder));
-        testImpl.setSteps(steps);
-        testImpl.setPodNames(knownPods);
+
+        return new ClusterTestImpl(actions,
+                new TestInfo(beanName, steps, annotation, alwaysRunAfterTestAction),
+                beforeStepAction,
+                afterStepAction,
+                beforeTestAction,
+                afterTestAction);
+    }
+
+    protected void processStepAnnotation(Object targetBean, String beanName, Method method, List<TestStep> steps, Map<Integer, TestAction> actions) {
+        Step stepAnnotation = method.getAnnotation(Step.class);
+        if (stepAnnotation != null) {
+
+            TestAction action = createStepAction(beanName, method);
+            steps.add(new PodStep(stepAnnotation.order(), stepAnnotation.nodes()));
+            TestAction previousAction = actions.put(stepAnnotation.order(), action);
+            if (previousAction != null) {//todo just log? or stop app (as now)?
+                throw new DevelopmentException(
+                        String.format("More than on test step with order %s found for test %s",
+                                stepAnnotation.order(),
+                                targetBean.getClass().getName()));
+            }
+        }
+    }
+
+    protected void processControlAnnotations(Method method, List<TestStep> steps) {
+        Annotation[] annotations = method.getAnnotations();
+
+        Arrays.stream(annotations).filter(a -> AddNode.class.equals(a.annotationType())).map(AddNode.class::cast)
+                .forEach(a -> {
+                    steps.add(new ControlStep(a.order(), ControlStep.Operation.ADD, a.names()));
+                });
+        Arrays.stream(annotations).filter(a -> RecreateNodes.class.equals(a.annotationType())).map(RecreateNodes.class::cast)
+                .forEach(a -> {
+                    steps.add(new ControlStep(a.order(), ControlStep.Operation.RECREATE_ALL, null));
+                });
+
+    }
+
+    protected TestAction processAnnotatedMethod(String beanName, Method method, Class<? extends Annotation> annotationClass, boolean failIfExist) {
+        Annotation annotation = method.getAnnotation(annotationClass);
+        if (annotation != null) {
+            if (failIfExist) {
+                throw new DevelopmentException(String.format("Duplicated '%s' annotation in class %s",
+                        annotationClass.getSimpleName(),
+                        method.getDeclaringClass().getName()));
+            }
+            return createStepAction(beanName, method);
+        }
+        return null;
+    }
+
+
+    protected TestAction createStepAction(String beanName, Method method) {
+        TestAction action = context -> {
+            try {
+                List<Object> argList = new LinkedList<>();
+                for (Class<?> clazz : method.getParameterTypes()) {
+                    if (clazz.isAssignableFrom(TestContext.class)) {//todo extensibility
+                        argList.add(context);
+                    } else {
+                        argList.add(null);
+                    }
+                }
+                method.invoke(beanFactory.getBean(beanName), argList.toArray());
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);//todo correct error processing and returning of result
+            } catch (InvocationTargetException e) {
+                if (e.getTargetException() != null) {//todo recheck, does it used at all
+                    throw new TestStepException(e.getTargetException());
+                } else {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+        return action;
+    }
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        this.beanFactory = beanFactory;
     }
 }

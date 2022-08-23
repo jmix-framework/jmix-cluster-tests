@@ -37,4 +37,10 @@ public class AnnotatedClusterTest {
 
         return true;
     }
+
+    @Step(order = 4)
+    public boolean doStep4() {
+        log.info("annotated test 1, step 3 [check that it works without context]");
+        return true;
+    }
 }

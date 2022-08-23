@@ -1,45 +1,63 @@
 package io.jmix.samples.cluster.test_system.impl;
 
-import io.jmix.samples.cluster.test_system.model.ClusterTest;
-import io.jmix.samples.cluster.test_system.model.TestContext;
-import io.jmix.samples.cluster.test_system.model.TestStepException;
-import io.jmix.samples.cluster.test_system.model.step.PodStep;
-import io.jmix.samples.cluster.test_system.model.step.TestStep;
+import io.jmix.samples.cluster.test_system.model.TestInfo;
+import io.jmix.samples.cluster.test_system.model.step.TestAction;
+import io.jmix.samples.cluster.test_system.model.step.TestAfterAction;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.Collections;
+import java.util.Map;
 
-public class ClusterTestImpl implements ClusterTest {//todo WITHOUT extension!!
+public class ClusterTestImpl {//todo WITHOUT extension!!
+    protected TestInfo testInfo;
 
-    protected List<TestStep> steps = new LinkedList<>();//todo control uniqueness of step.order
-    //todo do we need it at all or TestInfo can process it itself without using bean field?
-    protected Set<String> podNames = new HashSet<>();//todo to constructor
+    protected Map<Integer, TestAction> stepActions;
 
-    @Override
-    public Set<String> getPodNames() {
-        return podNames;
-    }//todo remove
+    protected TestAction beforeTest;
+    protected TestAfterAction afterTest;
+    protected TestAction beforeStep;
+    protected TestAfterAction afterStep;
 
-    @Override
-    public List<TestStep> getSteps() {
-        return steps;//todo wrap?
+    public ClusterTestImpl(
+            Map<Integer, TestAction> stepActions,
+            TestInfo info,
+            TestAction beforeStep,
+            TestAfterAction afterStep,
+            TestAction beforeTest,
+            TestAfterAction afterTest
+    ) {
+        this.stepActions = Collections.unmodifiableMap(stepActions);
+        this.testInfo = info;
+        this.beforeStep = beforeStep;
+        this.afterStep = afterStep;
+        this.beforeTest = beforeTest;
+        this.afterTest = afterTest;
     }
 
-    //todo make available during creation only (constructor?)
-    public void setSteps(List<TestStep> steps) {//todo protect in order init bean only can change steps
-        this.steps = steps;
+    public TestAction getAction(int stepOrder) {
+        return stepActions.get(stepOrder);
     }
 
-    //todo make available during creation only (constructor?)
-    public void setPodNames(Set<String> podNames) {
-        this.podNames = podNames;
+    public Map<Integer, TestAction> getStepActions() {
+        return stepActions;
     }
 
-    @Override//todo some reflection instead of single method?
-    public boolean doStep(TestContext context, PodStep step) throws TestStepException {
-        return step.getAction().doStep(context);
+    public TestInfo getTestInfo() {
+        return testInfo;
     }
 
+    public TestAction getBeforeTest() {
+        return beforeTest;
+    }
+
+    public TestAfterAction getAfterTest() {
+        return afterTest;
+    }
+
+    public TestAction getBeforeStep() {
+        return beforeStep;
+    }
+
+    public TestAfterAction getAfterStep() {
+        return afterStep;
+    }
 }

@@ -7,22 +7,26 @@ import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import java.io.Serializable;
 import java.util.*;
 
-public class TestInfo implements Serializable {
+public class TestInfo implements Serializable {//todo immutability
     private static final long serialVersionUID = -8002207034814424879L;
 
     //todo group to resources
-    private LinkedHashSet<String> podNames = new LinkedHashSet<>();//todo set only? no need for ordering?
+    private Set<String> podNames = new HashSet<>();
 
     private String beanName;
 
-    //TODO: beforeTest/beforeAll/afterTest/afterAll
     private List<TestStep> steps;
 
     private String description = "";
     private Set<String> initNodes;
     private boolean cleanStart;
 
-    public TestInfo(String beanName, List<TestStep> steps, ClusterTest properties) {
+    private boolean alwaysRunAfterTestAction;
+
+    public TestInfo(String beanName,
+                    List<TestStep> steps,
+                    ClusterTest properties,
+                    boolean alwaysRunAfterTestAction) {
         this.beanName = beanName;
         this.steps = steps;
         for (TestStep step : steps) {
@@ -30,6 +34,9 @@ public class TestInfo implements Serializable {
                 podNames.addAll(((PodStep) step).getNodes());
             }
         }
+
+        podNames = Collections.unmodifiableSet(podNames);
+
         description = properties.description();
 
         if (properties.initNodes().length == 1) {
@@ -49,13 +56,14 @@ public class TestInfo implements Serializable {
 
         cleanStart = properties.cleanStart();
 
+        this.alwaysRunAfterTestAction = alwaysRunAfterTestAction;
     }
 
     public String getDescription() {
         return description;
     }
 
-    public LinkedHashSet<String> getPodNames() {
+    public Set<String> getPodNames() {
         return podNames;
     }
 
