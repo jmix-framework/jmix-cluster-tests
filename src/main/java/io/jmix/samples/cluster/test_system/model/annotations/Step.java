@@ -6,16 +6,15 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface Step {
-    int order();//todo?(Integer, def val?)
+    int order();
 
     /**
      * Node names to run this step on.
      * Empty value means that step will be performed on all existing at step time nodes.
      */
-    String[] nodes() default {};//todo RESERVED name for ALL nodes (or using empty value for it is enough?)
+    String[] nodes() default {};//todo ALL_NODES reserved name or empty==all logic is enough?
 
-    String description() default "";//todo use method name by default
+    String description() default "";
     //todo groups of tests: group represents one test sequence
-
     //todo enabled or ignore
 }

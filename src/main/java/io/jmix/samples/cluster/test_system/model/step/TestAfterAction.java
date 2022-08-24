@@ -22,6 +22,6 @@ public class TestAfterAction implements TestAction {
 
     @Override
     public void doAction(TestContext context) throws TestStepException {
-
+        action.doAction(context);
     }
 }

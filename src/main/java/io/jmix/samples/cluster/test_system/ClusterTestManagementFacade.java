@@ -52,14 +52,14 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
         appender = new SynchronizedListAppender();
 
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-        context.getLogger("io.jmix").addAppender(appender);//todo or list of loggers: io.jmix, org.eclipselink, etc.
+        context.getLogger("io.jmix").addAppender(appender);//todo setup through .properties
         context.getLogger("org.eclipselink").addAppender(appender);
         context.getLogger("org.eclipse").addAppender(appender);
         context.getLogger("eclipselink").addAppender(appender);
     }
 
 
-    @ManagedAttribute(description = "ClusterTest size (example attribute)")//todo remove
+    @ManagedAttribute(description = "ClusterTest size (example attribute)")
     public long getSize() {
         return testInfos.size();
     }
@@ -70,7 +70,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
     }
 
 
-    //todo types
+
     @ManagedAttribute(description = "Describes cluster test set")
     public List<TestInfo> getTests() {
         return testInfos;
@@ -152,7 +152,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
         try {
             if (impl.getAfterTest() != null) {
                 impl.getAfterTest().doAction(context);
-            } else {//todo! check on runner!
+            } else {//todo! check on runner instead!
                 log.info("No AfterTest action found for test '{}'", beanName);
             }
         } catch (TestStepException e) {
@@ -194,7 +194,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
         TestAfterAction afterStepAction = null;
         TestAction beforeTestAction = null;
         TestAfterAction afterTestAction = null;
-        boolean alwaysRunAfterTestAction = false;//todo refactor better? (add also info about existence of afterTest in TestInfo)
+        boolean alwaysRunAfterTestAction = false;//todo refactor better? (add also info about existence of after-/before-Test in TestInfo)
 
         for (Method method : ReflectionUtils.getDeclaredMethods(targetBean.getClass())) {
             processStepAnnotation(targetBean, beanName, method, steps, actions);
@@ -241,7 +241,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
             TestAction action = createStepAction(beanName, method);
             steps.add(new PodStep(stepAnnotation.order(), stepAnnotation.nodes()));
             TestAction previousAction = actions.put(stepAnnotation.order(), action);
-            if (previousAction != null) {//todo just log? or stop app (as now)?
+            if (previousAction != null) {//todo just skip this test and log? or stop app (as now)?
                 throw new DevelopmentException(
                         String.format("More than on test step with order %s found for test %s",
                                 stepAnnotation.order(),

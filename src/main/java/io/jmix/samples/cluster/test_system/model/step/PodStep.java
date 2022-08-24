@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-//todo? divide to internal and external objects in order to avoid serialization issues?
 public class PodStep extends AbstractTestStep {
     private static final long serialVersionUID = -7068551058455006687L;
     private List<String> nodes;
@@ -23,11 +22,11 @@ public class PodStep extends AbstractTestStep {
     }
 
     @Override
-    public boolean equals(Object o) {//todo consider actions (develop serialization for methodInvocation/scaling/ui task)
+    public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof PodStep)) return false;
         PodStep podStep = (PodStep) o;
-        return nodes.equals(podStep.nodes);
+        return nodes.equals(podStep.nodes) && order == podStep.order;
     }
 
     @Override

@@ -7,7 +7,7 @@ import io.jmix.samples.cluster.test_system.model.step.TestAfterAction;
 import java.util.Collections;
 import java.util.Map;
 
-public class ClusterTestImpl {//todo WITHOUT extension!!
+public class ClusterTestImpl {
     protected TestInfo testInfo;
 
     protected Map<Integer, TestAction> stepActions;

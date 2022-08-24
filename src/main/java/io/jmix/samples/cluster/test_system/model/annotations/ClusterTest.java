@@ -13,12 +13,9 @@ public @interface ClusterTest {
 
     String[] initNodes() default ALL_NODES;
 
-    String description() default "";//todo try AliasFor value
-    //todo predefined nodes? or do it and other things in class itself?
+    String description() default "";
 
-    //todo clearStart
     //todo loggers config/filter
     //todo enabled or ignore
     //todo app-properties substitution by test (with full rescaling[restarting] of pods)
-
 }

@@ -25,11 +25,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Component("cluster_EntityCacheTest")
-//@ClusterTest(description = "Checks entity cache")//todo deal with it
-//TODO USE ANOTHER ENTITY. MAYBE USER HAS BEEN QUERIED AT SOME
+//@ClusterTest(description = "Checks entity cache")
+//does user loaded by system somewhere else?
 //todo clean query cache too. it may interfere
-
-//TODO ANNOTATION LOST!!
+//todo annotation on entity lost (Cacheable?)??
 public class EntityCacheTest implements InitializingBean {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EntityCacheTest.class);
@@ -67,7 +66,7 @@ public class EntityCacheTest implements InitializingBean {
     }
 
     public void clearAll() {
-        cache.clearQueryCache();//todo vs. evict
+        cache.clear();//todo vs. evict
         appender.clear();
         try {//todo remove when test will be fixed
             Thread.sleep(20000);
@@ -76,14 +75,10 @@ public class EntityCacheTest implements InitializingBean {
         }
     }
 
-    /*public void afterSuite(Object... entities) {//todo remove
-        cache.clear();
-        appender.clear();
-    }*/
 
     @Step(order = 0)//todo not works for all pods? //todo shared cache? session problem?
     public void testFind(TestContext context) throws Exception {//todo make sure that user is not loaded somewhere else and not existed in cache already
-        //clearAll();//todo enable after timeout will be removed
+        clearAll();
 
         appender.clear();
 
@@ -122,8 +117,8 @@ public class EntityCacheTest implements InitializingBean {
 
         assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(0);//todo
 
-        /*cache.evict(user, true);//todo not works in cluster
-        cache.clear();//todo will it work?*/
+        /*cache.evict(user, true);//todo doesn't not works in cluster
+        cache.clear();*/
         clearAll();
 
         log.info("Cache contains user: {}", cache.contains(user));
@@ -140,7 +135,7 @@ public class EntityCacheTest implements InitializingBean {
         assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(1);
     }
 
-    private User loadUserAlone() {//todo through dataManager?
+    private User loadUserAlone() {
         AtomicReference<User> user = new AtomicReference<>();
         transaction.executeWithoutResult(status -> {
             user.set(entityManager.find(User.class, this.userId));

@@ -6,8 +6,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Repeatable(AddNode.List.class)
-//todo hardcode operation type?
-public @interface AddNode {//todo
+public @interface AddNode {
 
     int order();
 

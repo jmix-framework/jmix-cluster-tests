@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/*//todo sync->clean->sync again? check order!!
+/*
 18:53:14.951 [Test worker] INFO io.jmix.samples.cluster.TestRunner - 2 app instances required: [1, 2]
 18:53:14.964 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
 18:53:17.010 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-49x7b', port='49004', debugPort='null'}
@@ -164,10 +164,11 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
         Set<String> requiredPods = info.getInitNodes();
         log.info("{} app instances required: {}", requiredPods.size(), requiredPods);
-        try (K8sControlTool k8s = new K8sControlTool(debugPods)) {
+        try (K8sControlTool k8s = new K8sControlTool(debugPods)) {//todo sync->clean->sync again? check order!!(+ use cleanStart option during tool creation)
+            //todo reuse forwarders?
             if (info.isCleanStart()) {
                 log.info("Clean start required. Stopping all pods.");
-                k8s.scalePods(0);//todo check that it is no problem because of 0 nodes (have seen null somewhere..)
+                k8s.scalePods(0);
             }
 
             log.info("Init nodes {}", info.getInitNodes());
@@ -277,8 +278,8 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                             }
                             waitAppsReady(k8s.getPodPorts());//todo rework
                             break;
-                        case RECREATE_ALL://todo implement. if do  - move rescaling and mapping code to some method
-                            throw new RuntimeException("Not implemented yet and maybe will not be implemented at all");
+                        case RECREATE_ALL://todo implement or remove completely
+                            throw new RuntimeException("Not implemented yet");
                     }
                 } else {
                     throw new RuntimeException("Not implemented yet!");
@@ -333,7 +334,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
     //todo not static
     static Stream<TestInfo> loadTests() throws Exception {
-        try (K8sControlTool k8s = new K8sControlTool()) {//todo scale to 0 than to 1? (in order to kill all orphan port-forward processes?)
+        try (K8sControlTool k8s = new K8sControlTool()) {
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }
@@ -370,8 +371,6 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         } catch (IOException | MalformedObjectNameException | MBeanException | AttributeNotFoundException |
                  InstanceNotFoundException |
                  ReflectionException e) {
-            //todo check MBeanException??? or leave as is and just throw out
-
             throw new RuntimeException(String.format("Cannot connect to pod by port %s.", port), e);
         }
     }

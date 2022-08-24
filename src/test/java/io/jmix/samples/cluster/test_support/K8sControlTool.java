@@ -25,8 +25,8 @@ public class K8sControlTool implements AutoCloseable {
     public static final int SCALE_TIMEOUT_MS = 120 * 1000;
     public static final int SCALE_CHECKING_PERIOUD_MS = 1000;
 
-    public static final int FIRST_PORT = 49001;//todo rollback
-    public static final int FIRST_DEBUG_PORT = 49501;//todo rollback
+    public static final int FIRST_PORT = 49001;
+    public static final int FIRST_DEBUG_PORT = 50001;
     public static final String INNER_JMX_PORT = "9875";
     public static final String INNER_DEBUG_PORT = "5006";
 
@@ -46,7 +46,7 @@ public class K8sControlTool implements AutoCloseable {
 
     //todo 1) test different cases when cluster is not available or some port closed
     // 2) test for remote connection
-    public K8sControlTool(boolean debugMode) {//todo bean? singleton?
+    public K8sControlTool(boolean debugMode) {
         this.debugMode = debugMode;
         ApiClient client = null;
         try {
@@ -85,7 +85,7 @@ public class K8sControlTool implements AutoCloseable {
         try {
             V1Scale scale = appApi.readNamespacedDeploymentScale("sample-app", "default", "true");
             log.info("Scaling deployment: {} -> {}", scale.getSpec().getReplicas(), size);//todo null printed when it is 0 replicas
-            scale.getSpec().setReplicas(size);//todo replace vs patch?
+            scale.getSpec().setReplicas(size);
             appApi.replaceNamespacedDeploymentScale(APP_NAME, NAMESPACE, scale, "true", null, null, null);
             awaitScaling(size);
             log.info("Deployment sucessfully scaled");
@@ -120,7 +120,7 @@ public class K8sControlTool implements AutoCloseable {
             String podName = Objects.requireNonNull(pod.getMetadata()).getName();
             if (bridges.containsKey(podName)) {
                 obsolete.remove(podName);
-                continue;//todo [last] verify carefully that it is the same pod but not just random name part collision
+                continue;//todo [last] verify carefully that it is the same pod but not just name collision
             }
             PodBridge bridge = PodBridge.establish(
                     podName,

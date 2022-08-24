@@ -58,7 +58,6 @@ public class EntityLockTest {
         return true;
     }
 
-    //@RecreateNodes(order = 0) //todo implement or remove
     @Step(order = 1, nodes = "1")
     public boolean createEntity(TestContext context) {
 
