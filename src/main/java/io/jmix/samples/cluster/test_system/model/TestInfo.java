@@ -83,6 +83,10 @@ public class TestInfo implements Serializable {//todo immutability
         return cleanStart;
     }
 
+    public boolean isAlwaysRunAfterTestAction() {
+        return alwaysRunAfterTestAction;
+    }
+
     @Override
     public boolean equals(Object o) {//todo check
         if (this == o) return true;

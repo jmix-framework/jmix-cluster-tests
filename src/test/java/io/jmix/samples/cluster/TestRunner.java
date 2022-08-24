@@ -184,24 +184,21 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
 
             log.info("Executing before test action...");
-            AtomicReference<TestResult> beforeResult = new AtomicReference<>(null);
-            doInJmxConnection(
-                    (localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.keySet().iterator().next()),
-                    (conn, objectName) -> {
-                        beforeResult.set((TestResult) conn.invoke(objectName,
-                                BEFORE_TEST_RUN_OPERATION,
-                                new Object[]{info.getBeanName(), null},
-                                new String[]{String.class.getName(), TestContext.class.getName()}
-                        ));
-                    }
-            );
+
+            TestResult beforeTestResult = runTestActionAndCheckResult(
+                    localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.values().iterator().next(),
+                    info.getBeanName(),
+                    BEFORE_TEST_RUN_OPERATION,
+                    null);
+
 
             TestContext testContext;
 
-            if (beforeResult.get().isSuccessfully()) {
-                testContext = beforeResult.get().getContext();
+            if (beforeTestResult.isSuccessfully()) {
+                testContext = beforeTestResult.getContext();
             } else {
-                throw beforeResult.get().getException();//todo common method for step invocation and error processing
+                //todo error processing should be inside runTestActionAndCheckResult metod
+                throw beforeTestResult.getException();
             }
 
 
@@ -244,9 +241,17 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                                 if (throwable instanceof TestStepException)
                                     throwable = throwable.getCause();
 
-                                //TODO AFTERTESTMETHOD!!!
 
-                                log.error("    Step {} for node {} finished with error.", step.getOrder(), node);
+                                if (info.isAlwaysRunAfterTestAction()) {
+                                    log.error("    Step {} for node {} finished with error.\n Running AfterTest actions..", step.getOrder(), node, throwable);
+                                    runTestActionAndCheckResult(
+                                            localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.values().iterator().next(),
+                                            info.getBeanName(),
+                                            AFTER_TEST_RUN_OPERATION,
+                                            testContext);
+                                } else {
+                                    log.error("    Step {} for node {} finished with error.", step.getOrder(), node);
+                                }
                                 throw throwable;
                             }
                         }
@@ -280,8 +285,34 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                 }
                 log.info("  Step {} finished sucessfully!", step);
             }
+            log.info("  Running AfterTest action...");
+
+            runTestActionAndCheckResult(
+                    localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.values().iterator().next(),
+                    info.getBeanName(),
+                    AFTER_TEST_RUN_OPERATION,
+                    testContext);
+
             log.info("Test {} finished sucessfully!", info);
         }
+    }
+
+    protected TestResult runTestActionAndCheckResult(String port, String beanName, String operationName, TestContext context) {//todo improve
+        AtomicReference<TestResult> beforeResult = new AtomicReference<>(null);
+        doInJmxConnection(
+                (localMode ? K8sControlTool.INNER_JMX_PORT : port),
+                (conn, objectName) -> {
+                    beforeResult.set((TestResult) conn.invoke(objectName,
+                            operationName,
+                            new Object[]{beanName, context},
+                            new String[]{String.class.getName(), TestContext.class.getName()}
+                    ));
+                }
+        );
+
+        //todo add result checking!
+
+        return beforeResult.get();
     }
 
 

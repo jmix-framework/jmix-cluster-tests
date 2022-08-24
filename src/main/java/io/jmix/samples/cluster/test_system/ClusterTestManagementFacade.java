@@ -121,7 +121,11 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
         if (context == null)
             context = new TestContext();
         try {
-            impl.getBeforeTest().doAction(context);
+            if (impl.getBeforeTest() != null) {//todo! check on runner!
+                impl.getBeforeTest().doAction(context);
+            } else {
+                log.info("No BeforeTest action found for test '{}'", beanName);
+            }
         } catch (TestStepException e) {
             result.setException(e);
             result.setSuccessfully(false);
@@ -146,7 +150,11 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
         if (context == null)
             context = new TestContext();
         try {
-            impl.getAfterTest().doAction(context);
+            if (impl.getAfterTest() != null) {
+                impl.getAfterTest().doAction(context);
+            } else {//todo! check on runner!
+                log.info("No AfterTest action found for test '{}'", beanName);
+            }
         } catch (TestStepException e) {
             result.setException(e);
             result.setSuccessfully(false);

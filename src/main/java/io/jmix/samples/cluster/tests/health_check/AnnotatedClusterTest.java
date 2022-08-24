@@ -6,6 +6,8 @@ import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 @Component("cluster_annotatedClusterTest")
 @ClusterTest(cleanStart = true,
         description = "Check context works")
@@ -22,7 +24,7 @@ public class AnnotatedClusterTest {
 
     @Step(order = 2, nodes = "2")
     public boolean doStep2(TestContext context) {
-        assert context.get("a") == "b";//todo (hamcrest)
+        assertThat(context.get("a")).isEqualTo("b");
         context.put("c", "d");
         log.info("annotated test 1, step 2");
         return true;
@@ -30,8 +32,9 @@ public class AnnotatedClusterTest {
 
     @Step(order = 3, nodes = {"1", "2"})
     public boolean doStep3(TestContext context) {
-        assert context.get("a") == "b";//todo (hamcrest)
-        assert context.get("c") == "d";//todo (hamcrest)
+        assertThat(context.get("a")).isEqualTo("b");
+        assertThat(context.get("c")).isEqualTo("d");
+
         context.put("e", "f");
         log.info("annotated test 1, step 3");
 
