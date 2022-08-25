@@ -69,15 +69,11 @@ public class K8sControlTool implements AutoCloseable {
         return bridges.size();
     }
 
-    public LinkedHashMap<String, String> getPodPorts() {//todo rework!!!
-        LinkedHashMap<String, String> result = new LinkedHashMap<>();
-        for (Map.Entry<String, PodBridge> entry : bridges.entrySet()) {
-            result.put(entry.getKey(), entry.getValue().getPort());
-        }
-        return result;
+    public List<PodBridge> getPodBridges() {
+        return new LinkedList<>(bridges.values());
     }
 
-    public List<String> getPorts() {//todo replace getPodPorts().values() by this method
+    public List<String> getPorts() {
         return bridges.values().stream().map(PodBridge::getPort).collect(Collectors.toList());
     }
 

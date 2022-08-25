@@ -1,8 +1,9 @@
 package io.jmix.samples.cluster;
 
 import io.jmix.core.DevelopmentException;
-import io.jmix.samples.cluster.test_support.jmx.JmxOperation;
+import io.jmix.samples.cluster.test_support.jmx.JmxOperations;
 import io.jmix.samples.cluster.test_support.k8s.K8sControlTool;
+import io.jmix.samples.cluster.test_support.k8s.PodBridge;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
 import io.jmix.samples.cluster.test_system.model.TestResult;
@@ -17,23 +18,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.jmix.samples.cluster.test_support.jmx.JmxOperation.doInJmxConnection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 
 public class TestRunner {//todo move cluster tests to separate test in order to run without cl parameter
-
-
     public static final String TEST_SIZE_ATTRIBUTE = "Size";
     public static final String READY_ATTRIBUTE = "Ready";
 
+    public static final String TEST_LIST_ATTRIBUTE = "Tests";
     public static final String TEST_RUN_OPERATION = "runTest";
     public static final String BEFORE_TEST_RUN_OPERATION = "runBeforeTestAction";
     public static final String AFTER_TEST_RUN_OPERATION = "runAfterTestAction";
@@ -42,7 +39,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     public static final int APP_STARTUP_CHECK_PERIOD_SEC = 10;
     private static final Logger log = LoggerFactory.getLogger(TestRunner.class);
 
-    public static final boolean localMode = true;
+    public static final boolean localMode = false;
     public static final boolean debugPods = false;
 
     @Test
@@ -50,13 +47,13 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     void testScalingProcess() throws Exception {
         try (K8sControlTool k8s = new K8sControlTool()) {
             k8s.scalePods(3);
-            waitAppsReady(k8s.getPodPorts());
+            waitAppsReady(k8s.getPodBridges());
 
             k8s.scalePods(1);
-            waitAppsReady(k8s.getPodPorts());
+            waitAppsReady(k8s.getPodBridges());
 
             k8s.scalePods(2);
-            waitAppsReady(k8s.getPodPorts());
+            waitAppsReady(k8s.getPodBridges());
         }
     }
 
@@ -66,12 +63,12 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         try (K8sControlTool k8s = new K8sControlTool()) {
             k8s.scalePods(3);
 
-            LinkedHashMap<String, String> podPorts = k8s.getPodPorts();
-            waitAppsReady(k8s.getPodPorts());
+            List<PodBridge> podBridges = k8s.getPodBridges();
+            waitAppsReady(k8s.getPodBridges());
 
             List<TestInfo> common = null;
-            for (String port : podPorts.values()) {
-                List<TestInfo> tests = JmxOperation.loadTests(port).collect(Collectors.toList());
+            for (PodBridge bridge : podBridges) {
+                List<TestInfo> tests = loadTests(bridge.getPort()).collect(Collectors.toList());
                 assertNotNull(tests);
                 assertFalse(tests.isEmpty());
                 if (common == null) {
@@ -85,21 +82,16 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         }
     }
 
-    public static void waitAppsReady(Map<String, String> podPorts) {//todo refactor
+    public static void waitAppsReady(List<PodBridge> bridges) {//todo refactor
         //todo async?
-        for (Map.Entry<String, String> podPort : podPorts.entrySet()) {
-            log.info("Waiting port '{}' for pod '{}'...", podPort.getValue(), podPort.getKey());
-            AtomicBoolean sucess = new AtomicBoolean(false);
+        for (PodBridge bridge : bridges) {
+            log.info("Waiting port '{}' for pod '{}'...", bridge.getPort(), bridge.getName());
+            boolean sucess = false;
             long startTime = System.currentTimeMillis();
             RuntimeException lastException = null;
-            while (!sucess.get()) {
+            while (!sucess) {
                 try {
-                    doInJmxConnection(podPort.getValue(), ((connection, objectName) -> {
-                        boolean ready = (boolean) connection.getAttribute(objectName, READY_ATTRIBUTE);
-                        if (ready) {
-                            sucess.set(true);
-                        }
-                    }));
+                    sucess = JmxOperations.getAttribute(bridge.getPort(), READY_ATTRIBUTE);
                 } catch (RuntimeException e) {
                     lastException = e;
                 }
@@ -107,20 +99,20 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                     if (lastException == null) {
                         throw new RuntimeException(
                                 String.format("Cannot access app on pod '%s' through port %s: timeout reached",
-                                        podPort.getKey(),
-                                        podPort.getValue()));
+                                        bridge.getName(),
+                                        bridge.getPort()));
                     } else {
                         throw new RuntimeException(
                                 String.format("Cannot access app on pod '%s' through port %s: timeout reached. See nested exception.",
-                                        podPort.getKey(),
-                                        podPort.getValue()),
+                                        bridge.getName(),
+                                        bridge.getPort()),
                                 lastException);
                     }
 
                 }
 
                 try {
-                    if (!sucess.get()) {
+                    if (!sucess) {
                         Thread.sleep(APP_STARTUP_CHECK_PERIOD_SEC * 1000);
                     }
                 } catch (InterruptedException e) {
@@ -128,7 +120,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                 }
             }
             log.info("App on pod {} accessible. Waiting time: {} seconds",
-                    podPort.getKey(),
+                    bridge.getName(),
                     ((double) System.currentTimeMillis() - startTime) / 1000);
         }
     }
@@ -147,12 +139,13 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
             if (info.isCleanStart()) {
                 log.info("Clean start required. Stopping all pods.");
                 k8s.scalePods(0);
+                //todo restart db pod too?
             }
 
             log.info("Init nodes {}", info.getInitNodes());
 
             k8s.scalePods(info.getInitNodes().size());
-            waitAppsReady(k8s.getPodPorts());
+            waitAppsReady(k8s.getPodBridges());
 
             Map<String, String> portsByNames = new HashMap<>();
             Iterator<String> ports = k8s.getPorts().iterator();
@@ -203,7 +196,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                         testContext = result.getContext();
                         if (result.isSuccessfully()) {
                             log.info("    Step {} for node {} finished sucessfully.", step.getOrder(), node);
-                            log.info("    Test Context: {}", testContext);
+
                         } else {
                             Throwable throwable = result.getException();
                             if (info.isAlwaysRunAfterTestAction()) {
@@ -229,15 +222,15 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                                     throw new DevelopmentException("Pod with name '" + nodName + "' has been already created");//todo ?!
                                 }
                                 k8s.scalePods(k8s.getPodCount() + 1);
-                                Map<String, String> podPorts = k8s.getPodPorts();
-                                for (Map.Entry<String, String> podPort : podPorts.entrySet()) {
-                                    if (!portsByNames.containsValue(podPort.getValue())) {
-                                        portsByNames.put(nodName, podPort.getValue());
-                                        log.info("    Node {} has been added. Related pod:{}:{}", nodName, podPort.getKey(), podPort.getValue());
+                                List<PodBridge> podPorts = k8s.getPodBridges();
+                                for (PodBridge bridge : podPorts) {
+                                    if (!portsByNames.containsValue(bridge.getPort())) {
+                                        portsByNames.put(nodName, bridge.getPort());
+                                        log.info("    Node {} has been added. Related pod:{}:{}", nodName, bridge.getName(), bridge.getPort());
                                     }
                                 }
                             }
-                            waitAppsReady(k8s.getPodPorts());//todo rework
+                            waitAppsReady(k8s.getPodBridges());
                             break;
                         case RECREATE_ALL://todo implement or remove completely
                             throw new RuntimeException("Not implemented yet");
@@ -266,22 +259,12 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     }
 
     protected TestResult runTestAction(String port, String operationName, Object[] params, String[] types, PrintParams printParams) {
-        AtomicReference<TestResult> resultRef = new AtomicReference<>(null);
         if (localMode) {
             log.debug("Local Mode enabled: use local port {} instead of pod port {} ", K8sControlTool.INNER_JMX_PORT, port);
             port = K8sControlTool.INNER_JMX_PORT;
         }
-        doInJmxConnection(
-                port,
-                (conn, objectName) -> {
-                    resultRef.set((TestResult) conn.invoke(objectName,
-                            operationName,
-                            params,
-                            types
-                    ));
-                }
-        );
-        TestResult result = resultRef.get();
+        TestResult result = JmxOperations.invoke(port, operationName, params, types);
+
         StringBuilder builder = new StringBuilder();
         for (String logRecord : result.getLogs()) {
             builder.append(printParams.logPrefix)
@@ -289,12 +272,13 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                     .append("\n");
         }
 
-        log.info(printParams.logMessage + "\n {}", builder);
+        log.info(printParams.logMessage + "\n{}", builder);
 
+        log.info("Test Context: {}", result.getContext());
         if (!result.isSuccessfully()) {
             log.error(printParams.errorMessage, result.getException());
         }
-        return resultRef.get();
+        return result;
     }
 
 
@@ -313,20 +297,23 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         clusterTests(info);
     }
 
-    //todo not static
+    //todo not static?
     static Stream<TestInfo> loadTests() throws Exception {
         try (K8sControlTool k8s = new K8sControlTool()) {
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }
-            waitAppsReady(k8s.getPodPorts());
-            return JmxOperation.loadTests(localMode ? K8sControlTool.INNER_JMX_PORT : k8s.getPodPorts().values().iterator().next());
+            waitAppsReady(k8s.getPodBridges());
+            return loadTests(localMode ? K8sControlTool.INNER_JMX_PORT : k8s.getPorts().iterator().next());
         }
+    }
 
+    public static Stream<TestInfo> loadTests(String port) {
+        return ((List<TestInfo>) JmxOperations.getAttribute(port, TEST_LIST_ATTRIBUTE)).stream();
     }
 
 
-    private class PrintParams {
+    private static class PrintParams {
         String logPrefix = "";
         String logMessage = "";
         String errorMessage = "";

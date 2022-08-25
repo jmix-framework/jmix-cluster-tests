@@ -1,21 +1,22 @@
 package io.jmix.samples.cluster.tests.health_check;
 
 import io.jmix.samples.cluster.test_system.model.TestContext;
-import io.jmix.samples.cluster.test_system.model.annotations.AfterTest;
-import io.jmix.samples.cluster.test_system.model.annotations.BeforeTest;
-import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
-import io.jmix.samples.cluster.test_system.model.annotations.Step;
+import io.jmix.samples.cluster.test_system.model.annotations.*;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Component("cluster_annotatedClusterTest")
+@Component("cluster_selfTest")
 @ClusterTest(cleanStart = true,
-        description = "Check context works")
-public class AnnotatedClusterTest {
+        description = "Checks that test system works")
+public class SelfTest {
 
-    private static final Logger log = org.slf4j.LoggerFactory.getLogger(AnnotatedClusterTest.class);
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(SelfTest.class);
+
+    public static ThreadLocal<Boolean> beforeStepInvokedRecently = new ThreadLocal<>();
+    public static boolean valueClearedByAfterStep = false;
+
 
     @BeforeTest
     public void doBefore(TestContext context) {
@@ -23,6 +24,17 @@ public class AnnotatedClusterTest {
         context.put("initial", "exists");
         //throw new RuntimeException("@BeforeTest method failed by design");//enable to check @BeforeTest failing
     }
+
+    @BeforeStep
+    public void beforeStep(TestContext context) {
+        beforeStepInvokedRecently.set(true);
+    }
+
+    @AfterStep
+    public void afterStep(TestContext context) {
+        valueClearedByAfterStep = true;
+    }
+
 
     @Step(order = 1, nodes = "1")
     public boolean doStep1(TestContext context) {
@@ -33,27 +45,37 @@ public class AnnotatedClusterTest {
     }
 
     @Step(order = 2, nodes = "2")
-    public boolean doStep2(TestContext context) {
+    public void doStep2(TestContext context) {
         assertThat(context.get("a")).isEqualTo("b");
         context.put("c", "d");
+
         log.info("annotated test 1, step 2");
-        return true;
+
+        assertThat(beforeStepInvokedRecently.get()).isTrue();
+        beforeStepInvokedRecently.set(false);
+        valueClearedByAfterStep = false;
     }
 
     @Step(order = 3, nodes = {"1", "2"})
-    public boolean doStep3() {
+    public void doStep3() {
         log.info("annotated test 1, step 3");
 
-        return true;
+        assertThat(beforeStepInvokedRecently.get()).isTrue();
+        beforeStepInvokedRecently.set(false);
+        assertThat(valueClearedByAfterStep).isTrue();
+        valueClearedByAfterStep = false;
     }
 
     @Step(order = 4)
-    public boolean doStep4(TestContext context) {
+    public void doStep4(TestContext context) {
         assertThat(context.get("a")).isEqualTo("b");
         assertThat(context.get("c")).isEqualTo("d");
 
         log.info("annotated test 1, step 3 [check that it works without context]");
-        return true;
+        assertThat(beforeStepInvokedRecently.get()).isTrue();
+        beforeStepInvokedRecently.set(false);
+        assertThat(valueClearedByAfterStep).isTrue();
+        valueClearedByAfterStep = false;
     }
 
     //@Step(order = 5)//enable to check test failing

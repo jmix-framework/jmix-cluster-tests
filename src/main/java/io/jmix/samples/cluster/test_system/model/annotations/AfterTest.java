@@ -5,7 +5,7 @@ import java.lang.annotation.*;
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-public @interface AfterTest {
+public @interface AfterTest {//todo node selection?
 
     /**
      * @return whether annotated method should be executed in case of test failed
