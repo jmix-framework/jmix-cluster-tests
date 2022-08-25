@@ -1,11 +1,11 @@
 package io.jmix.samples.cluster;
 
 import io.jmix.core.DevelopmentException;
-import io.jmix.samples.cluster.test_support.K8sControlTool;
+import io.jmix.samples.cluster.test_support.jmx.JmxOperation;
+import io.jmix.samples.cluster.test_support.k8s.K8sControlTool;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
 import io.jmix.samples.cluster.test_system.model.TestResult;
-import io.jmix.samples.cluster.test_system.model.TestStepException;
 import io.jmix.samples.cluster.test_system.model.step.ControlStep;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
@@ -16,46 +16,24 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.management.*;
-import javax.management.remote.JMXConnector;
-import javax.management.remote.JMXConnectorFactory;
-import javax.management.remote.JMXServiceURL;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.jmix.samples.cluster.test_support.jmx.JmxOperation.doInJmxConnection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/*
-18:53:14.951 [Test worker] INFO io.jmix.samples.cluster.TestRunner - 2 app instances required: [1, 2]
-18:53:14.964 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
-18:53:17.010 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-49x7b', port='49004', debugPort='null'}
-18:53:19.014 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-8z8mr', port='49005', debugPort='null'}
-18:53:21.020 [Test worker] INFO io.jmix.samples.cluster.TestRunner - FORWARDING: PodBridge{pod='sample-app-76d54b85f4-r47dh', port='49006', debugPort='null'}
-18:53:21.021 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Pod bridges synchronized
-18:53:21.021 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Clean start required. Stopping all pods.
-18:53:21.029 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Scaling deployment: 3 -> 0
-18:53:33.181 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Deployment sucessfully scaled
-18:53:33.181 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
-18:53:33.185 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Pod bridges synchronized
-18:53:33.185 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Init nodes [1, 2]
-18:53:33.191 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Scaling deployment: null -> 2
-18:53:36.228 [Test worker] INFO io.jmix.samples.cluster.TestRunner - Deployment sucessfully scaled
-18:53:36.228 [Test worker] DEBUG io.jmix.samples.cluster.TestRunner - Synchronizing pod bridges
-* */
-
 
 public class TestRunner {//todo move cluster tests to separate test in order to run without cl parameter
-    public static final String JMX_SERVICE_CUSTOM_URL = "service:jmx:jmxmp://localhost:%s";
-    public static final String CLUSTER_TEST_BEAN_NAME = "jmix.cluster:type=ClusterTestBean";
+
+
     public static final String TEST_SIZE_ATTRIBUTE = "Size";
     public static final String READY_ATTRIBUTE = "Ready";
-    public static final String TEST_LIST_ATTRIBUTE = "Tests";
+
     public static final String TEST_RUN_OPERATION = "runTest";
     public static final String BEFORE_TEST_RUN_OPERATION = "runBeforeTestAction";
     public static final String AFTER_TEST_RUN_OPERATION = "runAfterTestAction";
@@ -64,7 +42,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     public static final int APP_STARTUP_CHECK_PERIOD_SEC = 10;
     private static final Logger log = LoggerFactory.getLogger(TestRunner.class);
 
-    public static final boolean localMode = false;
+    public static final boolean localMode = true;
     public static final boolean debugPods = false;
 
     @Test
@@ -93,7 +71,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
             List<TestInfo> common = null;
             for (String port : podPorts.values()) {
-                List<TestInfo> tests = loadTests(port).collect(Collectors.toList());
+                List<TestInfo> tests = JmxOperation.loadTests(port).collect(Collectors.toList());
                 assertNotNull(tests);
                 assertFalse(tests.isEmpty());
                 if (common == null) {
@@ -110,7 +88,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     public static void waitAppsReady(Map<String, String> podPorts) {//todo refactor
         //todo async?
         for (Map.Entry<String, String> podPort : podPorts.entrySet()) {
-            System.out.println("Waiting port '" + podPort.getValue() + "' for pod '" + podPort.getKey() + "'...");
+            log.info("Waiting port '{}' for pod '{}'...", podPort.getValue(), podPort.getKey());
             AtomicBoolean sucess = new AtomicBoolean(false);
             long startTime = System.currentTimeMillis();
             RuntimeException lastException = null;
@@ -186,22 +164,21 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
             log.info("Executing before test action...");
 
-            TestResult beforeTestResult = runTestActionAndCheckResult(
-                    localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.values().iterator().next(),
-                    info.getBeanName(),
+            TestResult beforeTestResult = runTestAction(
+                    portsByNames.values().iterator().next(),
                     BEFORE_TEST_RUN_OPERATION,
-                    null);
-
+                    new Object[]{info.getBeanName(), null},
+                    new String[]{String.class.getName(), TestContext.class.getName()},
+                    new PrintParams("          |- ")
+                            .errorMessage("BeforeTest action failed with error"));
 
             TestContext testContext;
 
             if (beforeTestResult.isSuccessfully()) {
                 testContext = beforeTestResult.getContext();
             } else {
-                //todo error processing should be inside runTestActionAndCheckResult metod
                 throw beforeTestResult.getException();
             }
-
 
             List<TestStep> steps = info.getSteps();
             log.info("Executing test steps...");
@@ -210,53 +187,37 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                 log.info("  Executing step {}...", step);
                 if (step instanceof PodStep) {
                     Collection<String> nodes = ((PodStep) step).getNodes();
-                    if (nodes.isEmpty())//todo do like for init: through constant and all pods (created on previous steps too)
+                    if (nodes.isEmpty())
                         nodes = portsByNames.keySet();
                     for (String node : nodes) {
                         log.info("    Invoking step {} for node {} ...", step.getOrder(), node);
-                        AtomicReference<TestResult> resultRef = new AtomicReference<>(null);
-                        TestContext finalTestContext = testContext;
-                        doInJmxConnection(localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.get(node),
-                                (conn, objectName) -> {
-                                    resultRef.set((TestResult) conn.invoke(objectName,
-                                            TEST_RUN_OPERATION,
-                                            new Object[]{info.getBeanName(), step.getOrder(), finalTestContext},
-                                            new String[]{String.class.getName(), int.class.getName(), TestContext.class.getName()}));
+                        TestResult result = runTestAction(
+                                portsByNames.get(node),
+                                TEST_RUN_OPERATION,
+                                new Object[]{info.getBeanName(), step.getOrder(), testContext},
+                                new String[]{String.class.getName(), int.class.getName(), TestContext.class.getName()},
+                                new PrintParams("          |- ")
+                                        .logMessage("      Node " + node + " logs:")
+                                        .errorMessage("    Step " + step.getOrder() + " for node " + node + " finished with error."));
 
-                                });
-                        if (resultRef.get() != null) {
-                            TestResult result = resultRef.get();
-                            StringBuilder builder = new StringBuilder();
-                            for (String logRecord : result.getLogs()) {
-                                builder.append("          |- ")
-                                        .append(logRecord)
-                                        .append("\n");
+                        testContext = result.getContext();
+                        if (result.isSuccessfully()) {
+                            log.info("    Step {} for node {} finished sucessfully.", step.getOrder(), node);
+                            log.info("    Test Context: {}", testContext);
+                        } else {
+                            Throwable throwable = result.getException();
+                            if (info.isAlwaysRunAfterTestAction()) {
+                                log.info("    Running mandatory @AfterTest actions..");
+                                runTestAction(
+                                        portsByNames.values().iterator().next(),
+                                        AFTER_TEST_RUN_OPERATION,
+                                        new Object[]{info.getBeanName(), testContext},
+                                        new String[]{String.class.getName(), TestContext.class.getName()},
+                                        new PrintParams("          |- ")
+                                                .errorMessage("    AfterTest action failed with error"));
                             }
-                            log.info("      Node {} logs:\n{}", node, builder);
-                            if (result.isSuccessfully()) {
-                                testContext = result.getContext();//updating context
-                                log.info("    Step {} for node {} finished sucessfully.", step.getOrder(), node);
-                                log.info("    Test Context: {}", testContext);
-                            } else {
-                                Throwable throwable = result.getException();
-                                if (throwable instanceof TestStepException)
-                                    throwable = throwable.getCause();
-
-
-                                if (info.isAlwaysRunAfterTestAction()) {
-                                    log.error("    Step {} for node {} finished with error.\n Running AfterTest actions..", step.getOrder(), node, throwable);
-                                    runTestActionAndCheckResult(
-                                            localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.values().iterator().next(),
-                                            info.getBeanName(),
-                                            AFTER_TEST_RUN_OPERATION,
-                                            testContext);
-                                } else {
-                                    log.error("    Step {} for node {} finished with error.", step.getOrder(), node);
-                                }
-                                throw throwable;
-                            }
+                            throw throwable;
                         }
-
                     }
 
                 } else if (step instanceof ControlStep) {
@@ -288,32 +249,52 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
             }
             log.info("  Running AfterTest action...");
 
-            runTestActionAndCheckResult(
-                    localMode ? K8sControlTool.INNER_JMX_PORT : portsByNames.values().iterator().next(),
-                    info.getBeanName(),
+            TestResult afterResult = runTestAction(
+                    portsByNames.values().iterator().next(),
                     AFTER_TEST_RUN_OPERATION,
-                    testContext);
+                    new Object[]{info.getBeanName(), testContext},
+                    new String[]{String.class.getName(), TestContext.class.getName()},
+                    new PrintParams("          |- ")
+                            .errorMessage("    AfterTest action failed with error"));
+
+            if (!afterResult.isSuccessfully()) {
+                throw afterResult.getException();
+            }
 
             log.info("Test {} finished sucessfully!", info);
         }
     }
 
-    protected TestResult runTestActionAndCheckResult(String port, String beanName, String operationName, TestContext context) {//todo improve
-        AtomicReference<TestResult> beforeResult = new AtomicReference<>(null);
+    protected TestResult runTestAction(String port, String operationName, Object[] params, String[] types, PrintParams printParams) {
+        AtomicReference<TestResult> resultRef = new AtomicReference<>(null);
+        if (localMode) {
+            log.debug("Local Mode enabled: use local port {} instead of pod port {} ", K8sControlTool.INNER_JMX_PORT, port);
+            port = K8sControlTool.INNER_JMX_PORT;
+        }
         doInJmxConnection(
-                (localMode ? K8sControlTool.INNER_JMX_PORT : port),
+                port,
                 (conn, objectName) -> {
-                    beforeResult.set((TestResult) conn.invoke(objectName,
+                    resultRef.set((TestResult) conn.invoke(objectName,
                             operationName,
-                            new Object[]{beanName, context},
-                            new String[]{String.class.getName(), TestContext.class.getName()}
+                            params,
+                            types
                     ));
                 }
         );
+        TestResult result = resultRef.get();
+        StringBuilder builder = new StringBuilder();
+        for (String logRecord : result.getLogs()) {
+            builder.append(printParams.logPrefix)
+                    .append(logRecord)
+                    .append("\n");
+        }
 
-        //todo add result checking!
+        log.info(printParams.logMessage + "\n {}", builder);
 
-        return beforeResult.get();
+        if (!result.isSuccessfully()) {
+            log.error(printParams.errorMessage, result.getException());
+        }
+        return resultRef.get();
     }
 
 
@@ -328,7 +309,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         }
 
         TestInfo info = testInfos.iterator().next();
-        log.info("Running single test: {}", info);
+        log.info("Single test mode for {}", info);
         clusterTests(info);
     }
 
@@ -339,46 +320,37 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
                 k8s.scalePods(1);
             }
             waitAppsReady(k8s.getPodPorts());
-            return loadTests(localMode ? K8sControlTool.INNER_JMX_PORT : k8s.getPodPorts().values().iterator().next());
+            return JmxOperation.loadTests(localMode ? K8sControlTool.INNER_JMX_PORT : k8s.getPodPorts().values().iterator().next());
         }
 
     }
 
-    static Stream<TestInfo> loadTests(String port) throws IOException, MalformedObjectNameException, ReflectionException, InstanceNotFoundException, IntrospectionException, AttributeNotFoundException, MBeanException {
-        JMXServiceURL url = new JMXServiceURL(String.format(JMX_SERVICE_CUSTOM_URL, port));
 
-        MBeanServerConnection connection;
-        try (JMXConnector connector = JMXConnectorFactory.connect(url)) {
-            connection = connector.getMBeanServerConnection();
-            ObjectName beanName = new ObjectName(CLUSTER_TEST_BEAN_NAME);
-            MBeanInfo info = connection.getMBeanInfo(beanName);
-            System.out.println(info);
-            List<TestInfo> result = (List<TestInfo>) connection.getAttribute(beanName, TEST_LIST_ATTRIBUTE);
-            System.out.println(result);
-            return result.stream();
+    private class PrintParams {
+        String logPrefix = "";
+        String logMessage = "";
+        String errorMessage = "";
+
+        public PrintParams() {
+        }
+
+        public PrintParams(String logPrefix) {
+            this.logPrefix = logPrefix;
+        }
+
+        public PrintParams logPrefix(String logPrefix) {
+            this.logPrefix = logPrefix;
+            return this;
+        }
+
+        public PrintParams logMessage(String logMessage) {
+            this.logMessage = logMessage;
+            return this;
+        }
+
+        public PrintParams errorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+            return this;
         }
     }
-
-
-    static void doInJmxConnection(String port, JMXAction action) {
-        try {
-            JMXServiceURL url = new JMXServiceURL(String.format(JMX_SERVICE_CUSTOM_URL, port));
-            try (JMXConnector connector = JMXConnectorFactory.connect(url)) {
-                MBeanServerConnection connection = connector.getMBeanServerConnection();
-                ObjectName beanName = new ObjectName(CLUSTER_TEST_BEAN_NAME);
-                action.accept(connection, beanName);
-            }
-        } catch (IOException | MalformedObjectNameException | MBeanException | AttributeNotFoundException |
-                 InstanceNotFoundException |
-                 ReflectionException e) {
-            throw new RuntimeException(String.format("Cannot connect to pod by port %s.", port), e);
-        }
-    }
-
-    protected interface JMXAction {
-        void accept(MBeanServerConnection connection, ObjectName beanName)
-                throws IOException, MBeanException, AttributeNotFoundException, InstanceNotFoundException, ReflectionException;
-    }
-
-
 }

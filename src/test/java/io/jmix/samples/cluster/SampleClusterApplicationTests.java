@@ -14,6 +14,8 @@ import io.kubernetes.client.openapi.models.V1PodBuilder;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Config;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -34,6 +36,8 @@ class SampleClusterApplicationTests {
     @Autowired
     SystemAuthenticator authenticator;
 
+    private static final Logger log = LoggerFactory.getLogger(SampleClusterApplicationTests.class);
+
     @Test
     void contextLoads() {
     }
@@ -46,20 +50,20 @@ class SampleClusterApplicationTests {
 
         CoreV1Api api = new CoreV1Api();
 
-        System.out.println("All pods:");
+        log.info("All pods:");
         V1PodList v1PodList =
                 api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
         for (V1Pod item : v1PodList.getItems()) {
-            System.out.println(item.getMetadata().getName());
+            log.info(item.getMetadata().getName());
         }
 
         List<V1Pod> appPods = v1PodList.getItems().stream()
                 .filter(item -> "sample-app".equals(item.getMetadata().getLabels().get("app")))
                 .collect(Collectors.toList());
 
-        System.out.println("\n\nAPP Pods:\n");
+        log.info("\n\nAPP Pods:");
         for (V1Pod item : appPods) {
-            System.out.println(item.getMetadata().getName());
+            log.info(item.getMetadata().getName());
         }
 
         V1Pod appPod = appPods.iterator().next();
@@ -76,7 +80,7 @@ class SampleClusterApplicationTests {
         v1PodList =
                 api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
         for (V1Pod item : v1PodList.getItems()) {
-            System.out.println(item.getMetadata().getName() + " - " + item.getMetadata().getNamespace());
+            log.info(item.getMetadata().getName() + " - " + item.getMetadata().getNamespace());
         }
 
 

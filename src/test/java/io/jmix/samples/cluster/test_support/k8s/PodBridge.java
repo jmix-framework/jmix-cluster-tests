@@ -1,4 +1,4 @@
-package io.jmix.samples.cluster.test_support;
+package io.jmix.samples.cluster.test_support.k8s;
 
 import javax.annotation.Nullable;
 import java.io.IOException;

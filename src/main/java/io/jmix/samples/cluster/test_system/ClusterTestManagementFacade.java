@@ -70,7 +70,6 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
     }
 
 
-
     @ManagedAttribute(description = "Describes cluster test set")
     public List<TestInfo> getTests() {
         return testInfos;
@@ -95,7 +94,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
             TestAction action = impl.getAction(stepOrder);
             action.doAction(context);
         } catch (TestStepException e) {
-            result.setException(e);
+            result.setException(e.getCause());
             result.setSuccessfully(false);
         } finally {
             if (impl.getAfterStep() != null && (impl.getAfterStep().isDoAlways() || result.isSuccessfully())) {
@@ -127,7 +126,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
                 log.info("No BeforeTest action found for test '{}'", beanName);
             }
         } catch (TestStepException e) {
-            result.setException(e);
+            result.setException(e.getCause());
             result.setSuccessfully(false);
         } finally {
             appender.stop();
@@ -156,7 +155,7 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
                 log.info("No AfterTest action found for test '{}'", beanName);
             }
         } catch (TestStepException e) {
-            result.setException(e);
+            result.setException(e.getCause());
             result.setSuccessfully(false);
         } finally {
             appender.stop();
@@ -200,10 +199,15 @@ public class ClusterTestManagementFacade implements BeanPostProcessor, Initializ
             processStepAnnotation(targetBean, beanName, method, steps, actions);
             processControlAnnotations(method, steps);
 
+            TestAction beforeStepActionCandidate = processAnnotatedMethod(beanName, method, BeforeStep.class, beforeStepAction != null);//todo make ClusterTestImpl sealable and move exception to setter?
+            if (beforeStepActionCandidate != null) {
+                beforeStepAction = beforeStepActionCandidate;
+            }
 
-            beforeStepAction = processAnnotatedMethod(beanName, method, BeforeStep.class, beforeStepAction != null);//todo make ClusterTestImpl sealable and move exception to setter?
-
-            beforeTestAction = processAnnotatedMethod(beanName, method, BeforeTest.class, beforeTestAction != null);
+            TestAction beforeTestActionCandidate = processAnnotatedMethod(beanName, method, BeforeTest.class, beforeTestAction != null);
+            if (beforeTestActionCandidate != null) {
+                beforeTestAction = beforeTestActionCandidate;
+            }
 
 
             TestAction afterStepActionCandidate = processAnnotatedMethod(beanName, method, AfterStep.class, afterStepAction != null);
