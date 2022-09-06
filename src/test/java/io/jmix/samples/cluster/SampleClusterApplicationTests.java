@@ -1,5 +1,9 @@
 package io.jmix.samples.cluster;
 
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.jmix.core.Metadata;
 import io.jmix.core.pessimisticlocking.LockInfo;
 import io.jmix.core.pessimisticlocking.LockManager;
@@ -24,6 +28,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static io.jmix.samples.cluster.test_support.k8s.K8sControlTool.NAMESPACE;
+import static io.jmix.samples.cluster.test_support.k8s.K8sControlTool.POD_LABEL_SELECTOR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -85,6 +92,64 @@ class SampleClusterApplicationTests {
 
 
         api.deleteNamespacedPod("sample-app", "default", "true", null, null, null, null, null);
+    }
+
+    @Test
+    void tryFabric8Client() throws InterruptedException, IOException {
+        try (KubernetesClient client = new KubernetesClientBuilder().build()) {
+            log.info("Namespaces: {}" + client.namespaces().list().toString());
+
+            log.info("Scale to 1");
+            client.apps().deployments().inNamespace(NAMESPACE).withName("sample-app").scale(1);
+            PodList pods = client.pods()
+                    .inNamespace(NAMESPACE)
+                    .withLabel(POD_LABEL_SELECTOR)
+                    .withField("status.phase", "Running")
+                    .list();
+
+            PodList allPods = client.pods()
+                    .inNamespace(NAMESPACE)
+                    .withLabel(POD_LABEL_SELECTOR)
+                    .list();
+
+
+            for (Pod pod : pods.getItems()) {
+                assertThat(pod.getStatus().getPhase()).isEqualTo("Running");
+            }
+
+            log.info("Pods:\n{}", pods.getItems().stream().map(p -> p.getMetadata().getName() + " - " + p.getStatus().getPhase()).collect(Collectors.joining("\n")));
+            log.info("AllPods:\n{}", allPods.getItems().stream().map(p -> p.getMetadata().getName() + " - " + p.getStatus().getPhase()).collect(Collectors.joining("\n")));
+
+            log.info("Scale to 3");
+            client.apps().deployments().inNamespace(NAMESPACE).withName("sample-app").scale(3);
+            pods = client.pods()
+                    .inNamespace(NAMESPACE)
+                    .withLabel(POD_LABEL_SELECTOR)
+                    .withField("status.phase", "Running")
+                    .list();
+
+            allPods = client.pods()
+                    .inNamespace(NAMESPACE)
+                    .withLabel(POD_LABEL_SELECTOR)
+                    .list();
+
+
+            for (Pod pod : pods.getItems()) {
+                assertThat(pod.getStatus().getPhase()).isEqualTo("Running");
+            }
+
+            log.info("Pods:\n{}", pods.getItems().stream().map(p -> p.getMetadata().getName() + " - " + p.getStatus().getPhase()).collect(Collectors.joining("\n")));
+            log.info("AllPods:\n{}", allPods.getItems().stream().map(p -> p.getMetadata().getName() + " - " + p.getStatus().getPhase()).collect(Collectors.joining("\n")));
+
+
+
+            /*LocalPortForward lpf = client.pods().inNamespace("default").withName("sample-app-76d54b85f4-62t5h ").portForward(8080,8080);
+
+            log.info("Port forwarded....");
+            Thread.sleep(10000);
+            log.info("Port forwarding finished");
+            lpf.close();*/
+        }
     }
 
     @Test

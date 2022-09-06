@@ -2,7 +2,9 @@ package io.jmix.samples.cluster;
 
 import io.jmix.core.DevelopmentException;
 import io.jmix.samples.cluster.test_support.jmx.JmxOperations;
+import io.jmix.samples.cluster.test_support.k8s.Fabric8K8sControlTool;
 import io.jmix.samples.cluster.test_support.k8s.K8sControlTool;
+import io.jmix.samples.cluster.test_support.k8s.OfficialK8sControlTool;
 import io.jmix.samples.cluster.test_support.k8s.PodBridge;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
@@ -45,7 +47,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     @Test
     @Order(1)
     void testScalingProcess() throws Exception {
-        try (K8sControlTool k8s = new K8sControlTool()) {
+        try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
             k8s.scalePods(3);
             waitAppsReady(k8s.getPodBridges());
 
@@ -60,7 +62,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     @Test
     @Order(2)
     void checkK8sApi() throws Exception {
-        try (K8sControlTool k8s = new K8sControlTool()) {
+        try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
             k8s.scalePods(3);
 
             List<PodBridge> podBridges = k8s.getPodBridges();
@@ -134,7 +136,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
         Set<String> requiredPods = info.getInitNodes();
         log.info("{} app instances required: {}", requiredPods.size(), requiredPods);
-        try (K8sControlTool k8s = new K8sControlTool(debugPods)) {//todo sync->clean->sync again? check order!!(+ use cleanStart option during tool creation)
+        try (K8sControlTool k8s = new Fabric8K8sControlTool(debugPods)) {//todo sync->clean->sync again? check order!!(+ use cleanStart option during tool creation)
             //todo reuse forwarders?
             if (info.isCleanStart()) {
                 log.info("Clean start required. Stopping all pods.");
@@ -299,7 +301,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
     //todo not static?
     static Stream<TestInfo> loadTests() throws Exception {
-        try (K8sControlTool k8s = new K8sControlTool()) {
+        try (K8sControlTool k8s = new OfficialK8sControlTool()) {
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }
@@ -309,7 +311,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     }
 
     public static Stream<TestInfo> loadTests(String port) {
-        return ((List<TestInfo>) JmxOperations.getAttribute(port, TEST_LIST_ATTRIBUTE)).stream();
+        return (JmxOperations.<List<TestInfo>>getAttribute(port, TEST_LIST_ATTRIBUTE)).stream();
     }
 
 

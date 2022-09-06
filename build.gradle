@@ -52,8 +52,10 @@ dependencies {
 
     implementation 'org.glassfish.main.external:jmxremote_optional-repackaged:5.0'
 
-    implementation("io.kubernetes:client-java:15.0.1") //todo: later, after precise checking
-    implementation("io.kubernetes:client-java-api-fluent:15.0.1") //todo: later, after precise checking
+    implementation 'io.kubernetes:client-java:15.0.1'
+    implementation 'io.kubernetes:client-java-api-fluent:15.0.1'
+    implementation 'io.fabric8:kubernetes-client:6.0.0'//todo runtime
+    implementation 'io.fabric8:kubernetes-client-api:6.0.0'//todo compile
 
     implementation 'org.assertj:assertj-core:3.23.1'
 }
