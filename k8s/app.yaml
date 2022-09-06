@@ -48,7 +48,6 @@ spec:
           ports:
             - containerPort: 8080
             - containerPort: 5701
-            #todo try to remove because it is exposed manually
             - name: sample-app-jmx
               containerPort: 9875
               protocol: TCP
@@ -64,7 +63,6 @@ spec:
       name: sample-app-app
     - port: 5701
       name: sample-app-hazelcast
-    #todo try to remove because it is exposed manually
     - port: 9875
       targetPort: sample-app-jmx
       protocol: TCP
