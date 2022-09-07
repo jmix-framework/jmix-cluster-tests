@@ -1,5 +1,6 @@
 package io.jmix.samples.cluster;
 
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -82,7 +83,7 @@ class SampleClusterApplicationTests {
                 .withSpec(appPod.getSpec())
                 .build();
 
-        api.createNamespacedPod("default", newPod, null, null, null, null);
+        api.createNamespacedPod("jmix-cluster-tests", newPod, null, null, null, null);
 
         v1PodList =
                 api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
@@ -91,7 +92,7 @@ class SampleClusterApplicationTests {
         }
 
 
-        api.deleteNamespacedPod("sample-app", "default", "true", null, null, null, null, null);
+        api.deleteNamespacedPod("sample-app", NAMESPACE, "true", null, null, null, null, null);
     }
 
     @Test
@@ -174,6 +175,18 @@ class SampleClusterApplicationTests {
             assertNull(lockInfo);
         } finally {
             authenticator.end();
+        }
+    }
+
+
+    @Test
+    void testRemoteClusterConnection() {
+        //System.setProperty("kubeconfig", "jcc-cluster-taimanov.yaml");
+
+        try (KubernetesClient kubernetesClient = new KubernetesClientBuilder().build()) {
+            List<Namespace> namespaces = kubernetesClient.namespaces().list().getItems();
+            log.warn("Namespaces.size {}", namespaces.size());
+            kubernetesClient.nodes().list().getItems().forEach(n -> log.warn("node:{}", n));
         }
     }
 

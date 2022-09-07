@@ -4,7 +4,6 @@ import io.jmix.core.DevelopmentException;
 import io.jmix.samples.cluster.test_support.jmx.JmxOperations;
 import io.jmix.samples.cluster.test_support.k8s.Fabric8K8sControlTool;
 import io.jmix.samples.cluster.test_support.k8s.K8sControlTool;
-import io.jmix.samples.cluster.test_support.k8s.OfficialK8sControlTool;
 import io.jmix.samples.cluster.test_support.k8s.PodBridge;
 import io.jmix.samples.cluster.test_system.model.TestContext;
 import io.jmix.samples.cluster.test_system.model.TestInfo;
@@ -301,7 +300,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
     //todo not static?
     static Stream<TestInfo> loadTests() throws Exception {
-        try (K8sControlTool k8s = new OfficialK8sControlTool()) {
+        try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }

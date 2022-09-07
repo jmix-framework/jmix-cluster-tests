@@ -12,6 +12,8 @@ minikube dashboard > /dev/null 2>&1 &
 #todo clear and apply configs not needed in case of minikube delete invoked
 echo 'Clearing deployment configs...'
 kubectl delete -f ./k8s
+#kubectl delete namespace jmix-cluster-tests
+kubectl create namespace jmix-cluster-tests
 echo 'Building app image...'
 ./gradlew bootBuildImage
 echo 'Loading image...'
@@ -19,4 +21,3 @@ minikube image load io.jmix.samples.cluster/sample-cluster:latest
 echo 'Applying configs...'
 kubectl apply -f ./k8s
 echo 'Done!'
-#todo OUTPUT in order to know that it works and does not hang

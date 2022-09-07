@@ -2,6 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: hazelcast-cluster-role
+  namespace: jmix-cluster-tests
 rules:
   - apiGroups:
       - ""
@@ -20,6 +21,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: hazelcast-cluster-role-binding
+  namespace: jmix-cluster-tests
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -27,4 +29,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: default
-    namespace: default
+    namespace: jmix-cluster-tests

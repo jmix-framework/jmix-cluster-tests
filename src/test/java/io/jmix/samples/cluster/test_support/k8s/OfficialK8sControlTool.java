@@ -15,6 +15,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * @deprecated doesn't work with namespaces
+ */
+@Deprecated
 public class OfficialK8sControlTool extends BaseK8sControlTool<V1Pod> {
 
     private CoreV1Api coreApi;
@@ -83,7 +87,7 @@ public class OfficialK8sControlTool extends BaseK8sControlTool<V1Pod> {
     protected int getCurrentScale() {
         try {
             V1ScaleSpec scaleSpec = appApi
-                    .readNamespacedDeploymentScale("sample-app", "default", "true")
+                    .readNamespacedDeploymentScale("sample-app", NAMESPACE, "true")
                     .getSpec();
             return (scaleSpec == null || scaleSpec.getReplicas() == null) ? 0 : scaleSpec.getReplicas();
         } catch (ApiException e) {
@@ -94,7 +98,7 @@ public class OfficialK8sControlTool extends BaseK8sControlTool<V1Pod> {
     @Override
     protected void doScale(int size) {
         try {
-            V1Scale scale = appApi.readNamespacedDeploymentScale("sample-app", "default", "true");
+            V1Scale scale = appApi.readNamespacedDeploymentScale("sample-app", NAMESPACE, "true");
             scale.getSpec().setReplicas(size);
             appApi.replaceNamespacedDeploymentScale(APP_NAME, NAMESPACE, scale, "true", null, null, null);
         } catch (ApiException e) {
