@@ -181,7 +181,6 @@ class SampleClusterApplicationTests {
 
     @Test
     void testRemoteClusterConnection() {
-        //System.setProperty("kubeconfig", "jcc-cluster-taimanov.yaml");
 
         try (KubernetesClient kubernetesClient = new KubernetesClientBuilder().build()) {
             List<Namespace> namespaces = kubernetesClient.namespaces().list().getItems();
