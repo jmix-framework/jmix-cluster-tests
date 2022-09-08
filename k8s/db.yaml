@@ -7,18 +7,6 @@ data:
   db_user: root
   db_password: root
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: sample-db-pvclaim
-  namespace: jmix-cluster-tests
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,8 +25,6 @@ spec:
     spec:
       volumes:
         - name: sample-db-storage
-          persistentVolumeClaim:
-            claimName: sample-db-pvclaim
       containers:
         - image: postgres
           name: sample-db

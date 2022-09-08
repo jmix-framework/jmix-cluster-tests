@@ -14,7 +14,7 @@ spec:
         app: sample-app
     spec:
       containers:
-        - image: io.jmix.samples.cluster/sample-cluster
+        - image: docker.haulmont.com/platform/jmix-kube-tests/sample-cluster
           imagePullPolicy: IfNotPresent
           name: sample-app
           env:
@@ -52,6 +52,9 @@ spec:
             - name: sample-app-jmx
               containerPort: 9875
               protocol: TCP
+      imagePullSecrets:
+        - name: kubetestcred
+
 ---
 apiVersion: v1
 kind: Service
