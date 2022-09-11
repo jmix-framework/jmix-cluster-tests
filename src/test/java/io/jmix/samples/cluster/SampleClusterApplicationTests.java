@@ -186,7 +186,16 @@ class SampleClusterApplicationTests {
             List<Namespace> namespaces = kubernetesClient.namespaces().list().getItems();
             log.warn("Namespaces.size {}", namespaces.size());
             kubernetesClient.nodes().list().getItems().forEach(n -> log.warn("node:{}", n));
+            kubernetesClient.pods().inNamespace("jmix-cluster-tests").list().getItems().forEach(p -> log.warn("pod: {}", p));
         }
+    }
+
+    @Test
+    void checkVariable() {
+        log.info("kubeconfig(env): {}", System.getenv("kubeconfig"));
+        log.info("kubeconfig(prop): {}", System.getProperty("kubeconfig"));
+        log.info("KUBECONFIG(env): {}", System.getenv("KUBECONFIG"));
+        log.info("KUBECONFIG(prop): {}", System.getProperty("KUBECONFIG"));
     }
 
 
