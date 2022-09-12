@@ -2,6 +2,7 @@ package io.jmix.samples.cluster.test_support.k8s;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.LocalPortForward;
@@ -28,8 +29,10 @@ public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {//todo add b
 
 
     @Override
-    protected void initClient() {//todo overload with creds and other stuff
-        client = new KubernetesClientBuilder().build();
+    protected void initClient() {
+        client = new KubernetesClientBuilder()
+                .withConfig(Config.fromKubeconfig(System.getenv("KUBECONFIG_CONTENT")))
+                .build();
     }
 
     @Override

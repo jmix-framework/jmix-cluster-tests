@@ -24,8 +24,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -184,7 +182,9 @@ class SampleClusterApplicationTests {
     //@Test
     void testRemoteClusterConnection() {
 
-        try (KubernetesClient kubernetesClient = new KubernetesClientBuilder().build()) {
+        try (KubernetesClient kubernetesClient = new KubernetesClientBuilder()
+                .withConfig(io.fabric8.kubernetes.client.Config.fromKubeconfig(System.getenv("KUBECONFIG_CONTENT")))
+                .build()) {
             List<Namespace> namespaces = kubernetesClient.namespaces().list().getItems();
             log.warn("Namespaces.size {}", namespaces.size());
             kubernetesClient.nodes().list().getItems().forEach(n -> log.warn("node:{}", n));
@@ -198,13 +198,8 @@ class SampleClusterApplicationTests {
         log.info("kubeconfig(prop): {}", System.getProperty("kubeconfig"));
         log.info("KUBECONFIG(env): {}", System.getenv("KUBECONFIG"));
         log.info("KUBECONFIG(prop): {}", System.getProperty("KUBECONFIG"));
+        log.info("KUBECONFIG_CONTENT(env) length: {}", System.getenv("KUBECONFIG_CONTENT").length());
 
-        List<String> lines = Files.readAllLines(Path.of(System.getenv("KUBECONFIG")));
-        if (lines.size() > 0) {
-            log.info("CONTENT: {}", lines.get(0));
-        } else {
-            log.info("No content");
-        }
         Map<String, String> enviorntmentVars = System.getenv();
         enviorntmentVars.entrySet().forEach(e -> log.info("env> {}", e));
 
