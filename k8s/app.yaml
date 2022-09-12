@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - image: docker.haulmont.com/platform/jmix-kube-tests/sample-cluster
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           name: sample-app
           env:
             - name: DB_USER

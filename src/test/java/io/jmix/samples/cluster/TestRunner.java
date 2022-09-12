@@ -299,6 +299,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
     static Stream<TestInfo> loadTests() throws Exception {
         try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
+            k8s.scalePods(0);//todo remove after normal reapplying of ./k8s configs will be set up
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }

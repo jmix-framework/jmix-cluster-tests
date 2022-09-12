@@ -18,7 +18,6 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodBuilder;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Config;
-import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -192,7 +191,7 @@ class SampleClusterApplicationTests {
         }
     }
 
-    @Test
+    //@Test
     void checkVariables() throws IOException {
         log.info("kubeconfig(env): {}", System.getenv("kubeconfig"));
         log.info("kubeconfig(prop): {}", System.getProperty("kubeconfig"));
