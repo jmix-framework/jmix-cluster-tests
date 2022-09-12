@@ -46,12 +46,12 @@ class SampleClusterApplicationTests {
 
     private static final Logger log = LoggerFactory.getLogger(SampleClusterApplicationTests.class);
 
-    @Test
+    //@Test
     void contextLoads() {
     }
 
 
-    @Test
+    //@Test
     void testListCreateDeletePods() throws IOException, ApiException {
         ApiClient client = Config.defaultClient();
         Configuration.setDefaultApiClient(client);
@@ -95,7 +95,7 @@ class SampleClusterApplicationTests {
         api.deleteNamespacedPod("sample-app", NAMESPACE, "true", null, null, null, null, null);
     }
 
-    @Test
+    //@Test
     void tryFabric8Client() throws InterruptedException, IOException {
         try (KubernetesClient client = new KubernetesClientBuilder().build()) {
             log.info("Namespaces: {}" + client.namespaces().list().toString());
@@ -153,7 +153,7 @@ class SampleClusterApplicationTests {
         }
     }
 
-    @Test
+    //@Test
     void testEntityLock() {
         authenticator.begin();
         try {
@@ -179,7 +179,7 @@ class SampleClusterApplicationTests {
     }
 
 
-    @Test
+    //@Test
     void testRemoteClusterConnection() {
 
         try (KubernetesClient kubernetesClient = new KubernetesClientBuilder().build()) {

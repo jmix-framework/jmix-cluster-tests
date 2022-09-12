@@ -12,7 +12,6 @@ import io.jmix.samples.cluster.test_system.model.step.ControlStep;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
@@ -43,8 +42,8 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     public static final boolean localMode = false;
     public static final boolean debugPods = false;
 
-    @Test
-    @Order(1)
+    //@Test
+    //@Order(1)
     void testScalingProcess() throws Exception {
         try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
             k8s.scalePods(3);
@@ -58,8 +57,8 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         }
     }
 
-    @Test
-    @Order(2)
+    //@Test
+    //@Order(2)
     void checkK8sApi() throws Exception {
         try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
             k8s.scalePods(3);
@@ -283,7 +282,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     }
 
 
-    @Test
+    //@Test
     void singleClusterTest() throws Throwable {
         String testBeanName = System.getProperty("testBeanName");
         List<TestInfo> testInfos = loadTests()
@@ -298,7 +297,6 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
         clusterTests(info);
     }
 
-    //todo not static?
     static Stream<TestInfo> loadTests() throws Exception {
         try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
             if (k8s.getPodCount() < 1) {
