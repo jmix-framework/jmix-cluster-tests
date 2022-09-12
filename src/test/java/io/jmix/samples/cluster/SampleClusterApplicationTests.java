@@ -26,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static io.jmix.samples.cluster.test_support.k8s.K8sControlTool.NAMESPACE;
@@ -189,11 +191,17 @@ class SampleClusterApplicationTests {
     }
 
     @Test
-    void checkVariable() {
+    void checkVariables() {
         log.info("kubeconfig(env): {}", System.getenv("kubeconfig"));
         log.info("kubeconfig(prop): {}", System.getProperty("kubeconfig"));
         log.info("KUBECONFIG(env): {}", System.getenv("KUBECONFIG"));
         log.info("KUBECONFIG(prop): {}", System.getProperty("KUBECONFIG"));
+
+        Map<String, String> enviorntmentVars = System.getenv();
+        enviorntmentVars.entrySet().forEach(e -> log.info("env> {}", e));
+
+        Properties properties = System.getProperties();
+        properties.entrySet().forEach(p -> log.info("prop> {}", p));
     }
 
 
