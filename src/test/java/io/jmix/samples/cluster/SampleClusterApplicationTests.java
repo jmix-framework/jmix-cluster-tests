@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -191,12 +193,18 @@ class SampleClusterApplicationTests {
     }
 
     @Test
-    void checkVariables() {
+    void checkVariables() throws IOException {
         log.info("kubeconfig(env): {}", System.getenv("kubeconfig"));
         log.info("kubeconfig(prop): {}", System.getProperty("kubeconfig"));
         log.info("KUBECONFIG(env): {}", System.getenv("KUBECONFIG"));
         log.info("KUBECONFIG(prop): {}", System.getProperty("KUBECONFIG"));
 
+        List<String> lines = Files.readAllLines(Path.of(System.getenv("KUBECONFIG")));
+        if (lines.size() > 0) {
+            log.info("CONTENT: {}", lines.get(0));
+        } else {
+            log.info("No content");
+        }
         Map<String, String> enviorntmentVars = System.getenv();
         enviorntmentVars.entrySet().forEach(e -> log.info("env> {}", e));
 
