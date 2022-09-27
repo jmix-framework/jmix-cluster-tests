@@ -12,6 +12,7 @@ import io.jmix.samples.cluster.test_system.model.step.ControlStep;
 import io.jmix.samples.cluster.test_system.model.step.PodStep;
 import io.jmix.samples.cluster.test_system.model.step.TestStep;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
@@ -282,7 +283,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     }
 
 
-    //@Test
+    @Test
     void singleClusterTest() throws Throwable {
         String testBeanName = System.getProperty("testBeanName");
         List<TestInfo> testInfos = loadTests()
@@ -299,7 +300,6 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
     static Stream<TestInfo> loadTests() throws Exception {
         try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
-            k8s.scalePods(0);//todo remove after normal reapplying of ./k8s configs will be set up
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }

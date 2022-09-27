@@ -7,6 +7,9 @@ import io.jmix.samples.cluster.entity.User;
 import io.jmix.samples.cluster.test_support.SimpleTestAppender;
 import io.jmix.samples.cluster.test_system.impl.SynchronizedListAppender;
 import io.jmix.samples.cluster.test_system.model.TestContext;
+import io.jmix.samples.cluster.test_system.model.annotations.AfterTest;
+import io.jmix.samples.cluster.test_system.model.annotations.BeforeTest;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
 import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import org.eclipse.persistence.jpa.JpaCache;
 import org.slf4j.LoggerFactory;
@@ -25,16 +28,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Component("cluster_EntityCacheTest")
-//@ClusterTest(description = "Checks entity cache")
-//does user loaded by system somewhere else?
-//todo clean query cache too. it may interfere
-//todo annotation on entity lost (Cacheable?)??
+@ClusterTest(description = "Checks entity cache")
 public class EntityCacheTest implements InitializingBean {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EntityCacheTest.class);
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(EntityCacheTest.class);
 
 
-    SynchronizedListAppender appender;
+    private SynchronizedListAppender appender;
 
     protected TransactionTemplate transaction;
     @PersistenceContext
@@ -47,7 +47,7 @@ public class EntityCacheTest implements InitializingBean {
 
     protected UUID userId = UUID.fromString("ae90ad94-abad-44bc-b851-95e4eee3dea2");
 
-    @Autowired//todo constructor-injection?
+    @Autowired
     protected void setTransactionManager(PlatformTransactionManager transactionManager) {
         transaction = new TransactionTemplate(transactionManager);
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -56,82 +56,70 @@ public class EntityCacheTest implements InitializingBean {
     @Override
     public void afterPropertiesSet() throws Exception {
         cache = (JpaCache) entityManager.getEntityManagerFactory().getCache();
-
         appender = new SimpleTestAppender();
 
-        appender.start();
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger logger = context.getLogger("eclipselink.logging.sql");
         logger.addAppender(appender);
     }
 
+
+    @BeforeTest
+    public void beforeTest() {
+        clearAll();
+        appender.start();
+    }
+
+
+    @AfterTest
+    public void afterTest() {
+        clearAll();
+        appender.stop();
+    }
+
     public void clearAll() {
-        cache.clear();//todo vs. evict
+        cache.clear();
         appender.clear();
-        try {//todo remove when test will be fixed
-            Thread.sleep(20000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
 
-
-    @Step(order = 0)//todo not works for all pods? //todo shared cache? session problem?
-    public void testFind(TestContext context) throws Exception {//todo make sure that user is not loaded somewhere else and not existed in cache already
-        clearAll();
-
-        appender.clear();
-
-        loadUserAlone();
-
-        assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(1);
-        appender.clear();
-
-        loadUserAlone();
-
-        assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(0);
-
-        clearAll();
-    }
 
     @Step(order = 1, nodes = "1")
-    public void testFindOne(TestContext context) throws Exception {
+    public void cacheEntityOnFirstNode(TestContext context) throws Exception {
         clearAll();
 
         loadUserAlone();
-
         assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(1);
 
-        appender.clear();//todo @AfterEach
+        appender.clear();
         User user = loadUserAlone();
-
         assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(0);
 
+        user.setLastName("First");
+        user = dataManager.save(user);
+        context.put("user", user);
     }
 
     @Step(order = 2, nodes = "2")
-    public void testFindTwo(TestContext context) throws Exception {
-        Thread.sleep(20000);
+    public void updateEntityOnSecondNode(TestContext context) throws Exception {
+
         appender.clear();
         User user = loadUserAlone();
+        assertThat(user.getLastName()).isEqualTo("First");
 
-        assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(0);//todo
-
-        /*cache.evict(user, true);//todo doesn't not works in cluster
-        cache.clear();*/
-        clearAll();
+        user.setLastName("Second");
+        dataManager.save(user);
 
         log.info("Cache contains user: {}", cache.contains(user));
         context.put("user", user);
     }
 
     @Step(order = 3, nodes = "1")
-    public void testEvicted(TestContext context) throws Exception {
+    public void checkCacheOnFirstNodeCleared(TestContext context) throws Exception {
         appender.clear();
         log.info("Cache contains user: {}", cache.contains(context.get("user")));
 
-        loadUserAlone();
-
+        User user = loadUserAlone();
+        assertThat(user.getLastName()).isEqualTo("Second");
         assertThat(appender.filterMessages(m -> m.contains("> SELECT")).count()).isEqualTo(1);
     }
 

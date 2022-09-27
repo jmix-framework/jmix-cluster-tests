@@ -3,6 +3,7 @@ package io.jmix.samples.cluster.test_support.k8s;
 import java.util.List;
 
 public interface K8sControlTool extends AutoCloseable {
+    String ENV_KUBECONFIG_CONTENT = "KUBECONFIG_CONTENT";
     String NAMESPACE = "jmix-cluster-tests";
     String APP_NAME = "sample-app";
     String POD_LABEL_SELECTOR = "app=" + APP_NAME;

@@ -29,8 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static io.jmix.samples.cluster.test_support.k8s.K8sControlTool.NAMESPACE;
-import static io.jmix.samples.cluster.test_support.k8s.K8sControlTool.POD_LABEL_SELECTOR;
+import static io.jmix.samples.cluster.test_support.k8s.K8sControlTool.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -181,9 +180,12 @@ class SampleClusterApplicationTests {
     //@Test
     void testRemoteClusterConnection() {
 
-        try (KubernetesClient kubernetesClient = new KubernetesClientBuilder()
-                .withConfig(io.fabric8.kubernetes.client.Config.fromKubeconfig(System.getenv("KUBECONFIG_CONTENT")))
-                .build()) {
+        KubernetesClientBuilder builder = new KubernetesClientBuilder();
+        if (System.getenv(ENV_KUBECONFIG_CONTENT) != null) {
+            builder.withConfig(io.fabric8.kubernetes.client.Config.fromKubeconfig(System.getenv(ENV_KUBECONFIG_CONTENT)));
+        }
+
+        try (KubernetesClient kubernetesClient = builder.build()) {
             List<Namespace> namespaces = kubernetesClient.namespaces().list().getItems();
             log.warn("Namespaces.size {}", namespaces.size());
             kubernetesClient.nodes().list().getItems().forEach(n -> log.warn("node:{}", n));

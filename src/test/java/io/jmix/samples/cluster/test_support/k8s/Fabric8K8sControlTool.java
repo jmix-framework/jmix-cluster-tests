@@ -30,9 +30,11 @@ public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {//todo add b
 
     @Override
     protected void initClient() {
-        client = new KubernetesClientBuilder()
-                .withConfig(Config.fromKubeconfig(System.getenv("KUBECONFIG_CONTENT")))
-                .build();
+        KubernetesClientBuilder builder = new KubernetesClientBuilder();
+        if (System.getenv(ENV_KUBECONFIG_CONTENT) != null) {
+            builder.withConfig(Config.fromKubeconfig(System.getenv(ENV_KUBECONFIG_CONTENT)));
+        }
+        client = builder.build();
     }
 
     @Override

@@ -2,49 +2,44 @@ package io.jmix.samples.cluster.tests;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import io.jmix.core.Metadata;
-import io.jmix.core.MetadataTools;
 import io.jmix.core.UnconstrainedDataManager;
 import io.jmix.eclipselink.impl.entitycache.QueryCache;
 import io.jmix.samples.cluster.entity.Sample;
 import io.jmix.samples.cluster.test_support.SimpleTestAppender;
+import io.jmix.samples.cluster.test_system.impl.SynchronizedListAppender;
 import io.jmix.samples.cluster.test_system.model.TestContext;
+import io.jmix.samples.cluster.test_system.model.annotations.AfterTest;
+import io.jmix.samples.cluster.test_system.model.annotations.BeforeTest;
+import io.jmix.samples.cluster.test_system.model.annotations.ClusterTest;
 import io.jmix.samples.cluster.test_system.model.annotations.Step;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Component("cluster_QueryCacheTest")
-//@ClusterTest(description = "Checks query cache works correctly in cluster")//todo
+@ClusterTest(description = "Checks query cache works correctly in cluster")
 public class QueryCacheTest implements InitializingBean {
-
-    //TODO REWRITE IN ORDER TO LOCAL RUN BE ABLE TO WORK TOO
-    //todo hazelcast java 9 problems?
-    //todo compare logs for "good" and "bad" nodes
-
     public static final String QUERY = "select s from cluster_Sample s where s.name=:name";
 
     @Autowired
     private UnconstrainedDataManager dataManager;
-    @Autowired
-    private Metadata metadata;
-    @Autowired
-    private MetadataTools metadataTools;
 
-    private SimpleTestAppender appender;
+    private SynchronizedListAppender appender;
+
+    @Autowired
+    private DataSource dataSource;
 
     @Override
-    public void afterPropertiesSet() throws Exception {
-
+    public void afterPropertiesSet() {
         appender = new SimpleTestAppender();
 
-        appender.start();
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger logger = context.getLogger("eclipselink.logging.sql");
         logger.addAppender(appender);
@@ -57,13 +52,9 @@ public class QueryCacheTest implements InitializingBean {
     @Step(order = 0, nodes = "1")
     public void checkOriginNode(TestContext context) {
 
-        assertThat(metadataTools.isCacheable(metadata.getClass(Sample.class))).isTrue();
-
         Sample entity = dataManager.create(Sample.class);
         entity.setName("one");
         dataManager.save(entity);
-
-        context.put("entity", entity);
 
         queryCache.invalidateAll();
         appender.clear();
@@ -78,7 +69,6 @@ public class QueryCacheTest implements InitializingBean {
         assertThat(getSelectQueriesCount()).isEqualTo(1);
 
         appender.clear();
-
         reloaded = dataManager.load(Sample.class)
                 .query(QUERY)
                 .parameter("name", "one")
@@ -88,22 +78,13 @@ public class QueryCacheTest implements InitializingBean {
         assertThat(reloaded.size()).isEqualTo(1);
         assertThat(queryCache.size()).isEqualTo(1);
         assertThat(getSelectQueriesCount()).isEqualTo(0);
+
+        context.put("entity", entity);
     }
 
     @Step(order = 1, nodes = "2")
     public void checkSecondNodeHasRecordInCache(TestContext context) {
-        appender.clear();//todo into before/after
-
-        //assertThat(queryCache.size()).isEqualTo(1);//todo not propagated but it is not so required
         Sample entity = ((Sample) context.get("entity"));
-       /* Sample reloaded = dataManager.load(Sample.class) //todo skip checking appeared. main purpose now - check cleared
-                .query(QUERY)
-                .parameter("id", entity.getId())
-                .cacheable(true)
-                .one();
-        assertThat(queryCache.size()).isEqualTo(1);
-        assertThat(getSelectQueriesCount()).isEqualTo(0);
-*/
         entity.setName("two");
         dataManager.save(entity);
     }
@@ -111,7 +92,6 @@ public class QueryCacheTest implements InitializingBean {
     @Step(order = 2, nodes = "1")
     public void checkCacheResetAfterUpdate(TestContext context) {
         appender.clear();
-        //assertThat(queryCache.size()).isEqualTo(0);//todo unstable and will be broken if something works in background
         Sample entity = ((Sample) context.get("entity"));
         List<Sample> reloaded = dataManager.load(Sample.class)
                 .query(QUERY)
@@ -122,24 +102,29 @@ public class QueryCacheTest implements InitializingBean {
         assertThat(reloaded.size()).isEqualTo(0);
         assertThat(queryCache.size()).isEqualTo(1);
         assertThat(getSelectQueriesCount()).isEqualTo(1);
-
-
     }
 
-    @Step(order = 10, description = "Clean")//todo!!!
-    public void clean(TestContext contex) {
-        appender.clear();
+    @BeforeTest
+    public void before() {
+        clean();
+        appender.start();
+    }
+
+    @AfterTest
+    public void after() {
+        clean();
         appender.stop();
+    }
+
+    public void clean() {
+        appender.clear();
         queryCache.invalidateAll();
-        if (contex.containsKey("entity")) {
-            Optional<Sample> loaded = dataManager.load(Sample.class).id(((Sample) contex.get("entity")).getId()).optional();
-            loaded.ifPresent(sample -> dataManager.remove(sample));
-        }
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate.update("delete from CLUSTER_SAMPLE");
     }
 
     private long getSelectQueriesCount() {
         return appender.filterMessages(m -> m.contains("> SELECT")).count();
     }
 
-    //todo check that changes applied using EntityManager refreshes cache for changed entity
 }
