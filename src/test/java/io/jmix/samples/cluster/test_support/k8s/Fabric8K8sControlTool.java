@@ -32,7 +32,10 @@ public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {//todo add b
     protected void initClient() {
         KubernetesClientBuilder builder = new KubernetesClientBuilder();
         if (System.getenv(ENV_KUBECONFIG_CONTENT) != null) {
+            log.info("Using environment variable to get kubeconfig...");
             builder.withConfig(Config.fromKubeconfig(System.getenv(ENV_KUBECONFIG_CONTENT)));
+        } else {
+            log.info("Local kubeconfig will be used in case of presence");
         }
         client = builder.build();
     }
