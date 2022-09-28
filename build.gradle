@@ -6,7 +6,7 @@ plugins {
 apply plugin: 'org.springframework.boot'
 
 jmix {
-    bomVersion = '1.4.999-SNAPSHOT'//todo parameter -P
+    bomVersion = project.hasProperty("jmixVersion") ? jmixVersion : '1.4.999-SNAPSHOT'
     projectId = 'cluster'
 }
 
@@ -64,5 +64,6 @@ test {
 }
 
 bootBuildImage {
+    println "Jmix verison: ${project.hasProperty("jmixVersion") ? jmixVersion : '1.4.999-SNAPSHOT (default)'}"
     imageName = 'docker.haulmont.com/platform/jmix-kube-tests/sample-cluster'
 }
