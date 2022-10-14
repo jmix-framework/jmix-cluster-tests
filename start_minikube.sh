@@ -16,6 +16,8 @@ kubectl delete -f ./k8s
 kubectl create namespace jmix-cluster-tests
 echo 'Building app image...'
 ./gradlew bootBuildImage
+echo 'Pushing image to gitlab repository'
+docker push docker.haulmont.com/platform/jmix-kube-tests/sample-cluster
 echo 'Loading image...'
 minikube image load docker.haulmont.com/platform/jmix-kube-tests/sample-cluster:latest
 echo 'Applying configs...'

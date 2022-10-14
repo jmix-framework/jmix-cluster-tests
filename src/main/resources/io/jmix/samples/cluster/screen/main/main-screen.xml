@@ -1,4 +1,5 @@
 <window xmlns="http://jmix.io/schema/ui/window"
+        xmlns:ntf="http://jmix.io/schema/notifications/ui"
         caption="msg://application.caption">
 
     <layout>
@@ -37,6 +38,7 @@
                                   icon="SIGN_OUT"
                                   description="msg://logoutBtnDescription"/>
                 </cssLayout>
+                <ntf:notificationsIndicator id="ntfIndicator"/>
             </drawer>
             <workArea id="workArea"
                       stylename="jmix-workarea"
