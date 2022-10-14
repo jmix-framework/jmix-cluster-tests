@@ -21,8 +21,8 @@ repositories {
     maven {
         url = 'https://nexus.jmix.io/repository/premium'
         credentials {
-            username = rootProject['premiumRepoUser']
-            password = rootProject['premiumRepoPass']
+            username = project.hasProperty("jmixPremiumRepoUser") ? project.getProperty("jmixPremiumRepoUser") : rootProject['premiumRepoUser']
+            password = project.hasProperty("jmixPremiumRepoPassword") ? project.getProperty("jmixPremiumRepoPassword") : rootProject['premiumRepoPass']
         }
     }
 }
