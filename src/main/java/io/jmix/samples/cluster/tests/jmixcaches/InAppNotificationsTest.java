@@ -1,4 +1,4 @@
-package io.jmix.samples.cluster.tests;
+package io.jmix.samples.cluster.tests.jmixcaches;
 
 import io.jmix.notifications.NotificationManager;
 import io.jmix.notifications.channel.impl.InAppNotificationChannel;

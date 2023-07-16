@@ -47,8 +47,11 @@ spec:
               exec:
                 command: [ "sh", "-c", "sleep 10" ]
           ports:
-            - containerPort: 8080
-            - containerPort: 5701
+            # todo make sure hazelcast is first (lexicographically too) because of https://github.com/hazelcast/hazelcast/issues/24688, revert when fix will be released
+            - name: hazelcast
+              containerPort: 5701
+            - name: web-ui
+              containerPort: 8080
             - name: sample-app-jmx
               containerPort: 9875
               protocol: TCP
@@ -64,10 +67,10 @@ metadata:
 spec:
   type: NodePort
   ports:
+    - port: 5701
+      name: hazelcast
     - port: 8080
       name: sample-app-app
-    - port: 5701
-      name: sample-app-hazelcast
     - port: 9875
       targetPort: sample-app-jmx
       protocol: TCP

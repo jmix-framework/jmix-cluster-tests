@@ -1,4 +1,4 @@
-package io.jmix.samples.cluster.tests;
+package io.jmix.samples.cluster.tests.jmixcaches;
 
 
 import com.haulmont.cuba.core.app.ConfigStorageAPI;

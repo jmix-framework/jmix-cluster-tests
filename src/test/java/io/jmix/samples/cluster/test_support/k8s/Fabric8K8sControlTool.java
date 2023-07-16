@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {//todo add base abstract class to avoid code duplication
+public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {
 
     private static final Logger log = LoggerFactory.getLogger(Fabric8K8sControlTool.class);
 
@@ -21,6 +21,10 @@ public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {//todo add b
 
     public Fabric8K8sControlTool(boolean debugMode) {
         super(debugMode);
+    }
+
+    public Fabric8K8sControlTool(boolean debugMode, boolean localClusterMode) {
+        super(debugMode, localClusterMode);
     }
 
     public Fabric8K8sControlTool() {
@@ -31,7 +35,7 @@ public class Fabric8K8sControlTool extends BaseK8sControlTool<Pod> {//todo add b
     @Override
     protected void initClient() {
         KubernetesClientBuilder builder = new KubernetesClientBuilder();
-        if (System.getenv(ENV_KUBECONFIG_CONTENT) != null) {
+        if (System.getenv(ENV_KUBECONFIG_CONTENT) != null && !localClusterMode) {
             log.info("Using environment variable to get kubeconfig...");
             builder.withConfig(Config.fromKubeconfig(System.getenv(ENV_KUBECONFIG_CONTENT)));
         } else {

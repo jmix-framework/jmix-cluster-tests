@@ -23,8 +23,14 @@ public abstract class BaseK8sControlTool<T> implements K8sControlTool {
     protected static int nextDebugPort = FIRST_DEBUG_PORT;
 
     protected boolean debugMode;
+    protected boolean localClusterMode;
 
     public BaseK8sControlTool(boolean debugMode) {
+        this(debugMode, false);
+    }
+
+    public BaseK8sControlTool(boolean debugMode, boolean localClusterMode) {
+        this.localClusterMode = localClusterMode;
         this.debugMode = debugMode;
         initClient();
         syncBridges();

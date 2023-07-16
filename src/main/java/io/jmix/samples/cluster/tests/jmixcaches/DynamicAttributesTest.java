@@ -1,4 +1,4 @@
-package io.jmix.samples.cluster.tests;
+package io.jmix.samples.cluster.tests.jmixcaches;
 
 import io.jmix.core.Metadata;
 import io.jmix.core.UnconstrainedDataManager;

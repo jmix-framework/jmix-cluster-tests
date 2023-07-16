@@ -39,13 +39,13 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     public static final int APP_STARTUP_CHECK_PERIOD_SEC = 10;
     private static final Logger log = LoggerFactory.getLogger(TestRunner.class);
 
-    public static final boolean localMode = false;
+    public static final boolean localClusterMode = false;
     public static final boolean debugPods = false;
 
     //@Test
     //@Order(1)
     void testScalingProcess() throws Exception {
-        try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
+        try (K8sControlTool k8s = new Fabric8K8sControlTool(debugPods, localClusterMode)) {
             k8s.scalePods(3);
             waitAppsReady(k8s.getPodBridges());
 
@@ -60,7 +60,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     //@Test
     //@Order(2)
     void checkK8sApi() throws Exception {
-        try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
+        try (K8sControlTool k8s = new Fabric8K8sControlTool(debugPods, localClusterMode)) {
             k8s.scalePods(3);
 
             List<PodBridge> podBridges = k8s.getPodBridges();
@@ -134,7 +134,7 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
 
         Set<String> requiredPods = info.getInitNodes();
         log.info("{} app instances required: {}", requiredPods.size(), requiredPods);
-        try (K8sControlTool k8s = new Fabric8K8sControlTool(debugPods)) {//todo sync->clean->sync again? check order!!(+ use cleanStart option during tool creation)
+        try (K8sControlTool k8s = new Fabric8K8sControlTool(debugPods, localClusterMode)) {//todo sync->clean->sync again? check order!!(+ use cleanStart option during tool creation)
             //todo reuse forwarders?
             if (info.isCleanStart()) {
                 log.info("Clean start required. Stopping all pods.");
@@ -259,10 +259,10 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     }
 
     protected TestResult runTestAction(String port, String operationName, Object[] params, String[] types, PrintParams printParams) {
-        if (localMode) {
+        /*if (localMode) {//todo localMode&localClusterMode
             log.debug("Local Mode enabled: use local port {} instead of pod port {} ", K8sControlTool.INNER_JMX_PORT, port);
             port = K8sControlTool.INNER_JMX_PORT;
-        }
+        }*/
         TestResult result = JmxOperations.invoke(port, operationName, params, types);
 
         StringBuilder builder = new StringBuilder();
@@ -298,12 +298,12 @@ public class TestRunner {//todo move cluster tests to separate test in order to 
     }
 
     static Stream<TestInfo> loadTests() throws Exception {
-        try (K8sControlTool k8s = new Fabric8K8sControlTool()) {
+        try (K8sControlTool k8s = new Fabric8K8sControlTool(debugPods, localClusterMode)) {
             if (k8s.getPodCount() < 1) {
                 k8s.scalePods(1);
             }
             waitAppsReady(k8s.getPodBridges());
-            return loadTests(localMode ? K8sControlTool.INNER_JMX_PORT : k8s.getPorts().iterator().next());
+            return loadTests(/*localMode ? K8sControlTool.INNER_JMX_PORT :*/ k8s.getPorts().iterator().next());//todo rework!! localMode vs localClusterMode
         }
     }
 

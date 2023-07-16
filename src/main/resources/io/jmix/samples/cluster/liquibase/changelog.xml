@@ -10,6 +10,16 @@
     <property name="uuid.type" dbms="oracle" value="varchar2(32)"/>
     <property name="uuid.type" dbms="!oracle" value="uuid"/>
 
+    <include file="/io/jmix/data/liquibase/changelog.xml"/>
+    <include file="/io/jmix/uidata/liquibase/changelog.xml"/>
+
+    <include file="/io/jmix/securitydata/liquibase/changelog.xml"/>
+    <include file="/io/jmix/notifications/liquibase/changelog.xml"/>
+    <include file="/io/jmix/dynattr/liquibase/changelog.xml"/>
+    <include file="/io/jmix/audit/liquibase/changelog.xml"/>
+    <include file="/io/jmix/email/liquibase/changelog.xml"/>
+    <include file="/com/haulmont/cuba/liquibase/changelog.xml"/>
+
     <includeAll path="/io/jmix/samples/cluster/liquibase/changelog"/>
 
 </databaseChangeLog>
