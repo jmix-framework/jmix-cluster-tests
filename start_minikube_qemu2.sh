@@ -4,7 +4,8 @@
 # todo possibility to clear/delete minikube vm before starting
 #minikube delete
 echo 'Starting cluster...'
-minikube start --vm-driver=virtualbox
+# "--network builtin" - optional
+minikube start --vm-driver=qemu2 --network builtin
 minikube addons enable ingress
 kubectl config use-context minikube
 minikube dashboard > /dev/null 2>&1 &

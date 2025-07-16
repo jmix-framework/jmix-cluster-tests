@@ -14,7 +14,7 @@ spec:
         app: sample-app
     spec:
       containers:
-        - image: docker.haulmont.com/platform/jmix-kube-tests/sample-cluster
+        - image: docker.haulmont.com/platform/jmix-kube-tests/sample-cluster:jmix_1_x
           imagePullPolicy: Always
           name: sample-app
           env:

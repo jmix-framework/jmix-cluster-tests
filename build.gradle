@@ -1,6 +1,7 @@
 plugins {
-    id 'io.jmix' version '1.5.3'
+    id 'io.jmix' version '1.7.+'
     id 'java'
+    id 'org.springframework.boot' version '3.5.0'
 }
 
 apply plugin: 'org.springframework.boot'
@@ -45,12 +46,8 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
-    implementation('com.hazelcast:hazelcast') {
-        version {
-            strictly '5.1.5'
-            //version <= 5.1.5 or 5.2.2, till https://github.com/hazelcast/hazelcast/pull/24834 will be released
-        }
-    }
+    implementation 'com.hazelcast:hazelcast'
+    //implementation 'com.hazelcast:hazelcast:5.3.2'
 
 
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
@@ -79,5 +76,5 @@ test {
 
 bootBuildImage {
     println "Jmix verison: ${project.hasProperty("jmixVersion") ? jmixVersion : defaultJmixVersion + ' (default)'}"
-    imageName = 'docker.haulmont.com/platform/jmix-kube-tests/sample-cluster'
+    imageName = 'docker.haulmont.com/platform/jmix-kube-tests/sample-cluster:jmix_1_x'
 }
