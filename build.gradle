@@ -1,5 +1,5 @@
 plugins {
-    id 'io.jmix' version '3.0.999-SNAPSHOT'
+    id 'io.jmix' version '3.1.999-SNAPSHOT'
     id 'java'
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.9'
 }
@@ -69,6 +69,7 @@ dependencies {
     }
 
     implementation("io.jmix.dynattr:jmix-dynattr-starter")
+    implementation 'io.jmix.dynmodel:jmix-dynmodel-starter'
     testImplementation 'io.jmix.flowui:jmix-flowui-test-assist'
 
     implementation 'org.glassfish.main.external:jmxremote_optional-repackaged:5.0'
