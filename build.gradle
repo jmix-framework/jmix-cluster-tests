@@ -96,7 +96,19 @@ configurations.implementation {
 
 test {
     useJUnitPlatform()
+
+    // Gradle passes -D options to the daemon, not to the forked test JVM, so the switches
+    // below have to be forwarded explicitly.
+
     systemProperty 'testBeanName', System.getProperty('testBeanName')
+
+    // -DlocalCluster=true : ignore the KUBECONFIG_CONTENT env variable and use the local
+    // kubeconfig. Needed only when that variable is set but the run must go to Rancher
+    // Desktop or minikube. Without the variable the local kubeconfig is used anyway.
+    systemProperty 'localCluster', System.getProperty('localCluster', 'false')
+
+    // -DdebugPods=true : forward the pod debug port 5006 to local ports starting from 50001.
+    systemProperty 'debugPods', System.getProperty('debugPods', 'false')
 }
 
 

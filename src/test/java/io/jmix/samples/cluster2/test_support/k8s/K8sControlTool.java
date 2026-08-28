@@ -31,6 +31,7 @@ public class K8sControlTool implements AutoCloseable {
 
 
     String ENV_KUBECONFIG_CONTENT = "KUBECONFIG_CONTENT";
+    String PROP_LOCAL_CLUSTER = "localCluster";
     String NAMESPACE = "jmix-cluster-tests";
     String APP_NAME = "sample-app";
     String POD_LABEL_SELECTOR = "app=" + APP_NAME;
@@ -41,17 +42,10 @@ public class K8sControlTool implements AutoCloseable {
     protected static int nextDebugPort = FIRST_DEBUG_PORT;
 
     protected boolean debugMode;
-    protected boolean localClusterMode;
 
     private KubernetesClient client;
 
     public K8sControlTool(boolean debugMode) {
-        this(debugMode, false);
-    }
-
-    public K8sControlTool(boolean debugMode, boolean localClusterMode) {
-        //super(debugMode, localClusterMode);
-        this.localClusterMode = localClusterMode;
         this.debugMode = debugMode;
         initClient();
         syncBridges();
@@ -63,11 +57,19 @@ public class K8sControlTool implements AutoCloseable {
 
     }
 
+    /**
+     * Chooses the kubeconfig source.
+     * <p>
+     * The remote cluster is used when the {@code KUBECONFIG_CONTENT} environment variable is set,
+     * otherwise the local kubeconfig is used. To ignore {@code KUBECONFIG_CONTENT} and force the
+     * local kubeconfig, run the tests with {@code -DlocalCluster=true}.
+     */
     protected void initClient() {
         KubernetesClientBuilder builder = new KubernetesClientBuilder();
-        if (System.getenv(ENV_KUBECONFIG_CONTENT) != null && !localClusterMode) {
+        String kubeconfigContent = System.getenv(ENV_KUBECONFIG_CONTENT);
+        if (kubeconfigContent != null && !Boolean.getBoolean(PROP_LOCAL_CLUSTER)) {
             log.info("Using environment variable to get kubeconfig...");
-            builder.withConfig(Config.fromKubeconfig(System.getenv(ENV_KUBECONFIG_CONTENT)));
+            builder.withConfig(Config.fromKubeconfig(kubeconfigContent));
         } else {
             log.info("Local kubeconfig will be used in case of presence");
         }

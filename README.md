@@ -26,9 +26,22 @@ Remote cluster:
 - `KUBECONFIG_CONTENT` contains the remote kubeconfig file content
 - `kubetestcred` exists in `jmix-cluster-tests`
 
-## Rancher Desktop
+## Choosing the cluster
 
-Before tests, make sure `TestRunner.localClusterMode` is `true`.
+The tests use the remote cluster when the `KUBECONFIG_CONTENT` environment variable is set,
+and the local kubeconfig otherwise.
+
+If `KUBECONFIG_CONTENT` is set in your shell but the run must go to a local cluster, add
+`-DlocalCluster=true`:
+
+```bash
+./gradlew test -DlocalCluster=true --tests io.jmix.samples.cluster2.TestRunner.clusterTests
+```
+
+To forward the pod debug port `5006` to local ports starting from `50001`, add
+`-DdebugPods=true`.
+
+## Rancher Desktop
 
 Make sure Rancher Desktop is running and the `rancher-desktop` kubectl context exists. Then build the app image and deploy:
 
@@ -60,8 +73,6 @@ kubectl delete namespace jmix-cluster-tests
 
 ## Minikube
 
-Before tests, make sure `TestRunner.localClusterMode` is `true`
-
 Full setup if the cluster is not installed yet:
 
 ```bash
@@ -81,8 +92,6 @@ Run tests:
 ```
 
 ## Remote cluster
-
-Make sure `TestRunner.localClusterMode` is `false`.
 
 Put the remote kubeconfig file content into `KUBECONFIG_CONTENT`, then run:
 
