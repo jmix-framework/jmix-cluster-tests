@@ -1,6 +1,6 @@
-# Jmix Cluster Tests for Jmix 2.x
+# Jmix Cluster Tests
 
-Project to run k8s cluster tests on Jmix 2.x app.
+Project to run k8s cluster tests on Jmix 2+ app.
 
 ## Prerequisites
 
